@@ -80,7 +80,7 @@ void SGP4xComponent::setup() {
       voc_algorithm_.set_states(this->voc_baselines_storage_.state0, this->voc_baselines_storage_.state1);
     }
   }
-  if (this->voc_sensor_ && this->voc_tuning_params_.has_value()) {
+  if ( (this->voc_sensor_ || this->voc_sensor_raw_) && this->voc_tuning_params_.has_value()) {
     voc_algorithm_.set_tuning_parameters(
         voc_tuning_params_.value().index_offset, voc_tuning_params_.value().learning_time_offset_hours,
         voc_tuning_params_.value().learning_time_gain_hours, voc_tuning_params_.value().gating_max_duration_minutes,
@@ -248,9 +248,13 @@ void SGP4xComponent::update() {
     if (this->voc_index_ != UINT16_MAX)
       this->voc_sensor_->publish_state(this->voc_index_);
   }
+  if (this->voc_sensor_raw_ != nullptr) {
+    if (this->voc_sraw_ != UINT16_MAX)
+      this->voc_sensor_raw_->publish_state(this->voc_sraw_);
+  }
   if (this->nox_sensor_ != nullptr) {
     if (this->nox_index_ != UINT16_MAX)
-      this->nox_sensor_->publish_state(this->nox_index_);
+      this->nox_sensor_->publish_state(this->voc_index_);
   }
 }
 
@@ -291,6 +295,7 @@ void SGP4xComponent::dump_config() {
     ESP_LOGCONFIG(TAG, "    No source configured");
   }
   LOG_SENSOR("  ", "VOC", this->voc_sensor_);
+  LOG_SENSOR("  ", "VOC", this->voc_sensor_raw_)
   LOG_SENSOR("  ", "NOx", this->nox_sensor_);
 }
 

@@ -33,13 +33,14 @@ CONF_LEARNING_TIME_OFFSET_HOURS = "learning_time_offset_hours"
 CONF_NOX = "nox"
 CONF_STD_INITIAL = "std_initial"
 CONF_VOC = "voc"
+CONF_VOC_RAW = "voc_raw"
 CONF_VOC_BASELINE = "voc_baseline"
 
 
 def validate_sensors(config):
-    if CONF_VOC not in config and CONF_NOX not in config:
+    if CONF_VOC not in config and CONF_NOX not in config and CONF_VOC_RAW not in config:
         raise cv.Invalid(
-            f"At least one sensor is required. Define {CONF_VOC} and/or {CONF_NOX}"
+            f"At least one sensor is required. Define {CONF_VOC} and/or {CONF_NOX} and/or {CONF_VOC_RAW}"
         )
     return config
 
@@ -69,6 +70,12 @@ CONFIG_SCHEMA = cv.All(
                 device_class=DEVICE_CLASS_AQI,
                 state_class=STATE_CLASS_MEASUREMENT,
             ).extend(GAS_SENSOR),
+            cv.Optional(CONF_VOC_RAW): sensor.sensor_schema(
+                icon=ICON_RADIATOR,
+                accuracy_decimals=0,
+                device_class=DEVICE_CLASS_AQI,
+                state_class=STATE_CLASS_MEASUREMENT,
+            ),
             cv.Optional(CONF_NOX): sensor.sensor_schema(
                 icon=ICON_RADIATOR,
                 accuracy_decimals=0,
@@ -123,6 +130,10 @@ async def to_code(config):
                     cfg[CONF_GAIN_FACTOR],
                 )
             )
+            
+    if CONF_VOC_RAW in config:
+        sens = await sensor.new_sensor(config[CONF_VOC_RAW])
+        cg.add(var.set_voc_raw_sensor(sens))
 
     if CONF_NOX in config:
         sens = await sensor.new_sensor(config[CONF_NOX])
