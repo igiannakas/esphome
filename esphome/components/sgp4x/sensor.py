@@ -139,7 +139,8 @@ async def to_code(config):
                 )
             )
     cg.add_library(
-        None,
-        None,
-        "https://github.com/Sensirion/arduino-gas-index-algorithm.git#3.2.1",
+    name="arduino-gas-index-algorithm",
+    repository="https://github.com/Sensirion/arduino-gas-index-algorithm.git#3.2.1",
+    version=None,
     )
+
