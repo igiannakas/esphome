@@ -29,12 +29,12 @@ static const char *const TAG = "mqtt";
 
 MQTTClientComponent::MQTTClientComponent() {
   global_mqtt_client = this;
-  this->credentials_.client_id = App.get_name() + "-" + get_mac_address();
+  const std::string mac_addr = get_mac_address();
+  this->credentials_.client_id = make_name_with_suffix(App.get_name(), '-', mac_addr.c_str(), mac_addr.size());
 }
 
 // Connection
 void MQTTClientComponent::setup() {
-  ESP_LOGCONFIG(TAG, "Running setup");
   this->mqtt_backend_.set_on_message(
       [this](const char *topic, const char *payload, size_t len, size_t index, size_t total) {
         if (index == 0)
@@ -57,15 +57,7 @@ void MQTTClientComponent::setup() {
   });
 #ifdef USE_LOGGER
   if (this->is_log_message_enabled() && logger::global_logger != nullptr) {
-    logger::global_logger->add_on_log_callback(
-        [this](int level, const char *tag, const char *message, size_t message_len) {
-          if (level <= this->log_level_ && this->is_connected()) {
-            this->publish({.topic = this->log_message_.topic,
-                           .payload = std::string(message, message_len),
-                           .qos = this->log_message_.qos,
-                           .retain = this->log_message_.retain});
-          }
-        });
+    logger::global_logger->add_log_listener(this);
   }
 #endif
 
@@ -92,6 +84,7 @@ void MQTTClientComponent::send_device_info_() {
   std::string topic = "esphome/discover/";
   topic.append(App.get_name());
 
+  // NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks) false positive with ArduinoJson
   this->publish_json(
       topic,
       [](JsonObject root) {
@@ -139,24 +132,35 @@ void MQTTClientComponent::send_device_info_() {
 #endif
 
 #ifdef USE_API_NOISE
-        if (api::global_api_server->get_noise_ctx()->has_psk()) {
-          root["api_encryption"] = "Noise_NNpsk0_25519_ChaChaPoly_SHA256";
-        } else {
-          root["api_encryption_supported"] = "Noise_NNpsk0_25519_ChaChaPoly_SHA256";
-        }
+        root[api::global_api_server->get_noise_ctx().has_psk() ? "api_encryption" : "api_encryption_supported"] =
+            "Noise_NNpsk0_25519_ChaChaPoly_SHA256";
 #endif
       },
       2, this->discovery_info_.retain);
+  // NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
 }
 
+#ifdef USE_LOGGER
+void MQTTClientComponent::on_log(uint8_t level, const char *tag, const char *message, size_t message_len) {
+  (void) tag;
+  if (level <= this->log_level_ && this->is_connected()) {
+    this->publish({.topic = this->log_message_.topic,
+                   .payload = std::string(message, message_len),
+                   .qos = this->log_message_.qos,
+                   .retain = this->log_message_.retain});
+  }
+}
+#endif
+
 void MQTTClientComponent::dump_config() {
+  char ip_buf[network::IP_ADDRESS_BUFFER_SIZE];
   ESP_LOGCONFIG(TAG,
                 "MQTT:\n"
                 "  Server Address: %s:%u (%s)\n"
                 "  Username: " LOG_SECRET("'%s'") "\n"
                                                   "  Client ID: " LOG_SECRET("'%s'") "\n"
                                                                                      "  Clean Session: %s",
-                this->credentials_.address.c_str(), this->credentials_.port, this->ip_.str().c_str(),
+                this->credentials_.address.c_str(), this->credentials_.port, this->ip_.str_to(ip_buf),
                 this->credentials_.username.c_str(), this->credentials_.client_id.c_str(),
                 YESNO(this->credentials_.clean_session));
   if (this->is_discovery_ip_enabled()) {
@@ -191,13 +195,17 @@ void MQTTClientComponent::start_dnslookup_() {
   this->dns_resolve_error_ = false;
   this->dns_resolved_ = false;
   ip_addr_t addr;
+  err_t err;
+  {
+    LwIPLock lock;
 #if USE_NETWORK_IPV6
-  err_t err = dns_gethostbyname_addrtype(this->credentials_.address.c_str(), &addr,
-                                         MQTTClientComponent::dns_found_callback, this, LWIP_DNS_ADDRTYPE_IPV6_IPV4);
+    err = dns_gethostbyname_addrtype(this->credentials_.address.c_str(), &addr, MQTTClientComponent::dns_found_callback,
+                                     this, LWIP_DNS_ADDRTYPE_IPV6_IPV4);
 #else
-  err_t err = dns_gethostbyname_addrtype(this->credentials_.address.c_str(), &addr,
-                                         MQTTClientComponent::dns_found_callback, this, LWIP_DNS_ADDRTYPE_IPV4);
+    err = dns_gethostbyname_addrtype(this->credentials_.address.c_str(), &addr, MQTTClientComponent::dns_found_callback,
+                                     this, LWIP_DNS_ADDRTYPE_IPV4);
 #endif /* USE_NETWORK_IPV6 */
+  }
   switch (err) {
     case ERR_OK: {
       // Got IP immediately
@@ -239,7 +247,8 @@ void MQTTClientComponent::check_dnslookup_() {
     return;
   }
 
-  ESP_LOGD(TAG, "Resolved broker IP address to %s", this->ip_.str().c_str());
+  char ip_buf[network::IP_ADDRESS_BUFFER_SIZE];
+  ESP_LOGD(TAG, "Resolved broker IP address to %s", this->ip_.str_to(ip_buf));
   this->start_connect_();
 }
 #if defined(USE_ESP8266) && LWIP_VERSION_MAJOR == 1
@@ -486,7 +495,7 @@ bool MQTTClientComponent::publish(const std::string &topic, const std::string &p
 
 bool MQTTClientComponent::publish(const std::string &topic, const char *payload, size_t payload_length, uint8_t qos,
                                   bool retain) {
-  return publish({.topic = topic, .payload = payload, .qos = qos, .retain = retain});
+  return publish({.topic = topic, .payload = std::string(payload, payload_length), .qos = qos, .retain = retain});
 }
 
 bool MQTTClientComponent::publish(const MQTTMessage &message) {
