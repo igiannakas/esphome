@@ -2,13 +2,7 @@ from esphome import pins
 import esphome.codegen as cg
 from esphome.components import fastled_base
 import esphome.config_validation as cv
-from esphome.const import (
-    CONF_CHIPSET,
-    CONF_NUM_LEDS,
-    CONF_PIN,
-    CONF_RGB_ORDER,
-    Framework,
-)
+from esphome.const import CONF_CHIPSET, CONF_NUM_LEDS, CONF_PIN, CONF_RGB_ORDER
 
 AUTO_LOAD = ["fastled_base"]
 
@@ -54,22 +48,13 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_PIN): pins.internal_gpio_output_pin_number,
         }
     ),
-    cv.only_with_framework(
-        frameworks=Framework.ARDUINO,
-        suggestions={
-            Framework.ESP_IDF: (
-                "esp32_rmt_led_strip",
-                "light/esp32_rmt_led_strip",
-            )
-        },
-    ),
+    _validate,
     cv.require_framework_version(
         esp8266_arduino=cv.Version(2, 7, 4),
         esp32_arduino=cv.Version(99, 0, 0),
         max_version=True,
         extra_message="Please see note on documentation for FastLED",
     ),
-    _validate,
 )
 
 

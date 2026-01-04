@@ -28,6 +28,21 @@
 namespace esphome {
 namespace statsd {
 
+using sensor_type_t = enum { TYPE_SENSOR, TYPE_BINARY_SENSOR };
+
+using sensors_t = struct {
+  const char *name;
+  sensor_type_t type;
+  union {
+#ifdef USE_SENSOR
+    esphome::sensor::Sensor *sensor;
+#endif
+#ifdef USE_BINARY_SENSOR
+    esphome::binary_sensor::BinarySensor *binary_sensor;
+#endif
+  };
+};
+
 class StatsdComponent : public PollingComponent {
  public:
   ~StatsdComponent();
@@ -55,20 +70,6 @@ class StatsdComponent : public PollingComponent {
   const char *host_;
   const char *prefix_;
   uint16_t port_;
-
-  using sensor_type_t = enum { TYPE_SENSOR, TYPE_BINARY_SENSOR };
-  using sensors_t = struct {
-    const char *name;
-    sensor_type_t type;
-    union {
-#ifdef USE_SENSOR
-      esphome::sensor::Sensor *sensor;
-#endif
-#ifdef USE_BINARY_SENSOR
-      esphome::binary_sensor::BinarySensor *binary_sensor;
-#endif
-    };
-  };
 
   std::vector<sensors_t> sensors_;
 

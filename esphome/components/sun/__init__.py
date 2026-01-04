@@ -1,4 +1,3 @@
-import contextlib
 import re
 
 from esphome import automation
@@ -42,10 +41,12 @@ ELEVATION_MAP = {
 
 def elevation(value):
     if isinstance(value, str):
-        with contextlib.suppress(cv.Invalid):
+        try:
             value = ELEVATION_MAP[
                 cv.one_of(*ELEVATION_MAP, lower=True, space="_")(value)
             ]
+        except cv.Invalid:
+            pass
     value = cv.angle(value)
     return cv.float_range(min=-180, max=180)(value)
 

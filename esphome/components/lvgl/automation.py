@@ -85,7 +85,8 @@ async def action_to_code(
     async with LambdaContext(parameters=args, where=action_id) as context:
         for widget in widgets:
             await action(widget)
-    return cg.new_Pvariable(action_id, template_arg, await context.get_lambda())
+    var = cg.new_Pvariable(action_id, template_arg, await context.get_lambda())
+    return var
 
 
 async def update_to_code(config, action_id, template_arg, args):
@@ -137,11 +138,7 @@ async def lvgl_is_idle(config, condition_id, template_arg, args):
     lvgl = config[CONF_LVGL_ID]
     timeout = await lv_milliseconds.process(config[CONF_TIMEOUT])
     async with LambdaContext(LVGL_COMP_ARG, return_type=cg.bool_) as context:
-        lv_add(
-            ReturnStatement(
-                lv_expr.disp_get_inactive_time(lvgl_comp.get_disp()) > timeout
-            )
-        )
+        lv_add(ReturnStatement(lvgl_comp.is_idle(timeout)))
     var = cg.new_Pvariable(
         condition_id,
         TemplateArguments(LvglComponent, *template_arg),
@@ -357,7 +354,8 @@ async def widget_focus(config, action_id, template_arg, args):
 
         if config[CONF_FREEZE]:
             lv.group_focus_freeze(group, True)
-        return cg.new_Pvariable(action_id, template_arg, await context.get_lambda())
+        var = cg.new_Pvariable(action_id, template_arg, await context.get_lambda())
+        return var
 
 
 @automation.register_action(
@@ -404,8 +402,7 @@ async def obj_refresh_to_code(config, action_id, template_arg, args):
         # must pass all widget-specific options here, even if not templated, but only do so if at least one is
         # templated. First filter out common style properties.
         config = {k: v for k, v in widget.config.items() if k not in ALL_STYLES}
-        # Check if v is a Lambda or a dict, implying it is dynamic
-        if any(isinstance(v, (Lambda, dict)) for v in config.values()):
+        if any(isinstance(v, Lambda) for v in config.values()):
             await widget.type.to_code(widget, config)
             if (
                 widget.type.w_type.value_property is not None

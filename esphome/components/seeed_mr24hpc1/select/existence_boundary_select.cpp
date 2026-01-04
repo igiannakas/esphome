@@ -3,9 +3,12 @@
 namespace esphome {
 namespace seeed_mr24hpc1 {
 
-void ExistenceBoundarySelect::control(size_t index) {
-  this->publish_state(index);
-  this->parent_->set_existence_boundary(index);
+void ExistenceBoundarySelect::control(const std::string &value) {
+  this->publish_state(value);
+  auto index = this->index_of(value);
+  if (index.has_value()) {
+    this->parent_->set_existence_boundary(index.value());
+  }
 }
 
 }  // namespace seeed_mr24hpc1

@@ -3,7 +3,8 @@
 
 #ifdef USE_ESP32
 
-namespace esphome::ethernet_info {
+namespace esphome {
+namespace ethernet_info {
 
 static const char *const TAG = "ethernet_info";
 
@@ -11,6 +12,7 @@ void IPAddressEthernetInfo::dump_config() { LOG_TEXT_SENSOR("", "EthernetInfo IP
 void DNSAddressEthernetInfo::dump_config() { LOG_TEXT_SENSOR("", "EthernetInfo DNS Address", this); }
 void MACAddressEthernetInfo::dump_config() { LOG_TEXT_SENSOR("", "EthernetInfo MAC Address", this); }
 
-}  // namespace esphome::ethernet_info
+}  // namespace ethernet_info
+}  // namespace esphome
 
 #endif  // USE_ESP32

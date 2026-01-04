@@ -82,10 +82,11 @@ class ComponentManifest:
         return getattr(self.module, "CONFLICTS_WITH", [])
 
     @property
-    def auto_load(
-        self,
-    ) -> list[str] | Callable[[], list[str]] | Callable[[ConfigType], list[str]]:
-        return getattr(self.module, "AUTO_LOAD", [])
+    def auto_load(self) -> list[str]:
+        al = getattr(self.module, "AUTO_LOAD", [])
+        if callable(al):
+            return al()
+        return al
 
     @property
     def codeowners(self) -> list[str]:
@@ -187,18 +188,11 @@ def install_meta_finder(
 
 
 def install_custom_components_meta_finder():
-    # Remove before 2026.6.0
     custom_components_dir = (Path(CORE.config_dir) / "custom_components").resolve()
-    if custom_components_dir.is_dir() and any(custom_components_dir.iterdir()):
-        _LOGGER.warning(
-            "The 'custom_components' folder is deprecated and will be removed in 2026.6.0. "
-            "Please use 'external_components' instead. "
-            "See https://esphome.io/components/external_components.html for more information."
-        )
     install_meta_finder(custom_components_dir)
 
 
-def _lookup_module(domain: str, exception: bool) -> ComponentManifest | None:
+def _lookup_module(domain, exception):
     if domain in _COMPONENT_CACHE:
         return _COMPONENT_CACHE[domain]
 
@@ -225,16 +219,16 @@ def _lookup_module(domain: str, exception: bool) -> ComponentManifest | None:
     return manif
 
 
-def get_component(domain: str, exception: bool = False) -> ComponentManifest | None:
+def get_component(domain, exception=False):
     assert "." not in domain
     return _lookup_module(domain, exception)
 
 
-def get_platform(domain: str, platform: str) -> ComponentManifest | None:
+def get_platform(domain, platform):
     full = f"{platform}.{domain}"
     return _lookup_module(full, False)
 
 
-_COMPONENT_CACHE: dict[str, ComponentManifest] = {}
+_COMPONENT_CACHE = {}
 CORE_COMPONENTS_PATH = (Path(__file__).parent / "components").resolve()
 _COMPONENT_CACHE["esphome"] = ComponentManifest(esphome.core.config)

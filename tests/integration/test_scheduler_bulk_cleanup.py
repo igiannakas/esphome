@@ -98,12 +98,12 @@ async def test_scheduler_bulk_cleanup(
         )
 
         # Execute the test
-        await client.execute_service(trigger_bulk_cleanup_service, {})
+        client.execute_service(trigger_bulk_cleanup_service, {})
 
         # Wait for test completion
         try:
             await asyncio.wait_for(test_complete_future, timeout=10.0)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail("Bulk cleanup test timed out")
 
         # Verify bulk cleanup was triggered

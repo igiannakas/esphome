@@ -16,6 +16,8 @@ enum ErrorCode {
 };
 
 void TEM3200Component::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
+
   uint8_t status(NONE);
   uint16_t raw_temperature(0);
   uint16_t raw_pressure(0);

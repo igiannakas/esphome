@@ -1,14 +1,14 @@
 #pragma once
 
 #include "esphome/core/component.h"
-#include "esphome/core/template_lambda.h"
 #include "esphome/components/binary_sensor/binary_sensor.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
-class TemplateBinarySensor final : public Component, public binary_sensor::BinarySensor {
+class TemplateBinarySensor : public Component, public binary_sensor::BinarySensor {
  public:
-  template<typename F> void set_template(F &&f) { this->f_.set(std::forward<F>(f)); }
+  void set_template(std::function<optional<bool>()> &&f) { this->f_ = f; }
 
   void setup() override;
   void loop() override;
@@ -17,7 +17,8 @@ class TemplateBinarySensor final : public Component, public binary_sensor::Binar
   float get_setup_priority() const override { return setup_priority::HARDWARE; }
 
  protected:
-  TemplateLambda<bool> f_;
+  std::function<optional<bool>()> f_{nullptr};
 };
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome

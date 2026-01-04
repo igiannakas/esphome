@@ -24,6 +24,7 @@ enum PCA6416AGPIORegisters {
 static const char *const TAG = "pca6416a";
 
 void PCA6416AComponent::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
   // Test to see if device exists
   uint8_t value;
   if (!this->read_register_(PCA6416A_INPUT0, &value)) {
@@ -33,7 +34,7 @@ void PCA6416AComponent::setup() {
   }
 
   // Test to see if the device supports pull-up resistors
-  if (this->read_register(PCAL6416A_PULL_EN0, &value, 1) == i2c::ERROR_OK) {
+  if (this->read_register(PCAL6416A_PULL_EN0, &value, 1, true) == i2c::ERROR_OK) {
     this->has_pullup_ = true;
   }
 
@@ -51,11 +52,6 @@ void PCA6416AComponent::setup() {
            this->status_has_error());
 }
 
-void PCA6416AComponent::loop() {
-  // Invalidate cache at the start of each loop
-  this->reset_pin_cache_();
-}
-
 void PCA6416AComponent::dump_config() {
   if (this->has_pullup_) {
     ESP_LOGCONFIG(TAG, "PCAL6416A:");
@@ -68,25 +64,15 @@ void PCA6416AComponent::dump_config() {
   }
 }
 
-bool PCA6416AComponent::digital_read_hw(uint8_t pin) {
+bool PCA6416AComponent::digital_read(uint8_t pin) {
+  uint8_t bit = pin % 8;
   uint8_t reg_addr = pin < 8 ? PCA6416A_INPUT0 : PCA6416A_INPUT1;
   uint8_t value = 0;
-  if (!this->read_register_(reg_addr, &value)) {
-    return false;
-  }
-
-  // Update the appropriate part of input_mask_
-  if (pin < 8) {
-    this->input_mask_ = (this->input_mask_ & 0xFF00) | value;
-  } else {
-    this->input_mask_ = (this->input_mask_ & 0x00FF) | (uint16_t(value) << 8);
-  }
-  return true;
+  this->read_register_(reg_addr, &value);
+  return value & (1 << bit);
 }
 
-bool PCA6416AComponent::digital_read_cache(uint8_t pin) { return this->input_mask_ & (1 << pin); }
-
-void PCA6416AComponent::digital_write_hw(uint8_t pin, bool value) {
+void PCA6416AComponent::digital_write(uint8_t pin, bool value) {
   uint8_t reg_addr = pin < 8 ? PCA6416A_OUTPUT0 : PCA6416A_OUTPUT1;
   this->update_register_(pin, value, reg_addr);
 }
@@ -120,7 +106,7 @@ bool PCA6416AComponent::read_register_(uint8_t reg, uint8_t *value) {
     return false;
   }
 
-  this->last_error_ = this->read_register(reg, value, 1);
+  this->last_error_ = this->read_register(reg, value, 1, true);
   if (this->last_error_ != i2c::ERROR_OK) {
     this->status_set_warning();
     ESP_LOGE(TAG, "read_register_(): I2C I/O error: %d", (int) this->last_error_);
@@ -137,7 +123,7 @@ bool PCA6416AComponent::write_register_(uint8_t reg, uint8_t value) {
     return false;
   }
 
-  this->last_error_ = this->write_register(reg, &value, 1);
+  this->last_error_ = this->write_register(reg, &value, 1, true);
   if (this->last_error_ != i2c::ERROR_OK) {
     this->status_set_warning();
     ESP_LOGE(TAG, "write_register_(): I2C I/O error: %d", (int) this->last_error_);
@@ -180,8 +166,10 @@ void PCA6416AGPIOPin::setup() { pin_mode(flags_); }
 void PCA6416AGPIOPin::pin_mode(gpio::Flags flags) { this->parent_->pin_mode(this->pin_, flags); }
 bool PCA6416AGPIOPin::digital_read() { return this->parent_->digital_read(this->pin_) != this->inverted_; }
 void PCA6416AGPIOPin::digital_write(bool value) { this->parent_->digital_write(this->pin_, value != this->inverted_); }
-size_t PCA6416AGPIOPin::dump_summary(char *buffer, size_t len) const {
-  return snprintf(buffer, len, "%u via PCA6416A", this->pin_);
+std::string PCA6416AGPIOPin::dump_summary() const {
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "%u via PCA6416A", pin_);
+  return buffer;
 }
 
 }  // namespace pca6416a

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from contextlib import suppress
+import fnmatch
 import functools
 import inspect
 from io import BytesIO, TextIOBase, TextIOWrapper
@@ -9,7 +9,6 @@ from ipaddress import _BaseAddress, _BaseNetwork
 import logging
 import math
 import os
-from pathlib import Path
 from typing import Any
 import uuid
 
@@ -57,12 +56,9 @@ class ESPHomeDataBase:
     def from_node(self, node):
         # pylint: disable=attribute-defined-outside-init
         self._esp_range = DocumentRange.from_marks(node.start_mark, node.end_mark)
-        if (
-            isinstance(node, yaml.ScalarNode)
-            and node.style is not None
-            and node.style in "|>"
-        ):
-            self._content_offset = 1
+        if isinstance(node, yaml.ScalarNode):
+            if node.style is not None and node.style in "|>":
+                self._content_offset = 1
 
     def from_database(self, database):
         # pylint: disable=attribute-defined-outside-init
@@ -70,7 +66,7 @@ class ESPHomeDataBase:
         self._content_offset = database.content_offset
 
 
-class ESPLiteralValue:
+class ESPForceValue:
     pass
 
 
@@ -110,9 +106,7 @@ def _add_data_ref(fn):
 class ESPHomeLoaderMixin:
     """Loader class that keeps track of line numbers."""
 
-    def __init__(
-        self, name: Path, yaml_loader: Callable[[Path], dict[str, Any]]
-    ) -> None:
+    def __init__(self, name: str, yaml_loader: Callable[[str], dict[str, Any]]) -> None:
         """Initialize the loader."""
         self.name = name
         self.yaml_loader = yaml_loader
@@ -257,8 +251,12 @@ class ESPHomeLoaderMixin:
             f"Environment variable '{node.value}' not defined", node.start_mark
         )
 
-    def _rel_path(self, *args: str) -> Path:
-        return self.name.parent / Path(*args)
+    @property
+    def _directory(self) -> str:
+        return os.path.dirname(self.name)
+
+    def _rel_path(self, *args: str) -> str:
+        return os.path.join(self._directory, *args)
 
     @_add_data_ref
     def construct_secret(self, node: yaml.Node) -> str:
@@ -268,8 +266,8 @@ class ESPHomeLoaderMixin:
             if self.name == CORE.config_path:
                 raise e
             try:
-                main_config_dir = CORE.config_path.parent
-                main_secret_yml = main_config_dir / SECRET_YAML
+                main_config_dir = os.path.dirname(CORE.config_path)
+                main_secret_yml = os.path.join(main_config_dir, SECRET_YAML)
                 secrets = self.yaml_loader(main_secret_yml)
             except EsphomeError as er:
                 raise EsphomeError(f"{e}\n{er}") from er
@@ -304,7 +302,8 @@ class ESPHomeLoaderMixin:
         result = self.yaml_loader(self._rel_path(file))
         if not vars:
             vars = {}
-        return substitute_vars(result, vars)
+        result = substitute_vars(result, vars)
+        return result
 
     @_add_data_ref
     def construct_include_dir_list(self, node: yaml.Node) -> list[dict[str, Any]]:
@@ -328,7 +327,7 @@ class ESPHomeLoaderMixin:
         files = filter_yaml_files(_find_files(self._rel_path(node.value), "*.yaml"))
         mapping = OrderedDict()
         for fname in files:
-            filename = fname.stem
+            filename = os.path.splitext(os.path.basename(fname))[0]
             mapping[filename] = self.yaml_loader(fname)
         return mapping
 
@@ -349,15 +348,9 @@ class ESPHomeLoaderMixin:
         return Lambda(str(node.value))
 
     @_add_data_ref
-    def construct_literal(self, node: yaml.Node) -> ESPLiteralValue:
-        obj = None
-        if isinstance(node, yaml.ScalarNode):
-            obj = self.construct_scalar(node)
-        elif isinstance(node, yaml.SequenceNode):
-            obj = self.construct_sequence(node)
-        elif isinstance(node, yaml.MappingNode):
-            obj = self.construct_mapping(node)
-        return add_class_to_obj(obj, ESPLiteralValue)
+    def construct_force(self, node: yaml.Node) -> ESPForceValue:
+        obj = self.construct_scalar(node)
+        return add_class_to_obj(obj, ESPForceValue)
 
     @_add_data_ref
     def construct_extend(self, node: yaml.Node) -> Extend:
@@ -374,8 +367,8 @@ class ESPHomeLoader(ESPHomeLoaderMixin, FastestAvailableSafeLoader):
     def __init__(
         self,
         stream: TextIOBase | BytesIO,
-        name: Path,
-        yaml_loader: Callable[[Path], dict[str, Any]],
+        name: str,
+        yaml_loader: Callable[[str], dict[str, Any]],
     ) -> None:
         FastestAvailableSafeLoader.__init__(self, stream)
         ESPHomeLoaderMixin.__init__(self, name, yaml_loader)
@@ -387,8 +380,8 @@ class ESPHomePurePythonLoader(ESPHomeLoaderMixin, PurePythonLoader):
     def __init__(
         self,
         stream: TextIOBase | BytesIO,
-        name: Path,
-        yaml_loader: Callable[[Path], dict[str, Any]],
+        name: str,
+        yaml_loader: Callable[[str], dict[str, Any]],
     ) -> None:
         PurePythonLoader.__init__(self, stream)
         ESPHomeLoaderMixin.__init__(self, name, yaml_loader)
@@ -414,29 +407,29 @@ for _loader in (ESPHomeLoader, ESPHomePurePythonLoader):
         "!include_dir_merge_named", _loader.construct_include_dir_merge_named
     )
     _loader.add_constructor("!lambda", _loader.construct_lambda)
-    _loader.add_constructor("!literal", _loader.construct_literal)
+    _loader.add_constructor("!force", _loader.construct_force)
     _loader.add_constructor("!extend", _loader.construct_extend)
     _loader.add_constructor("!remove", _loader.construct_remove)
 
 
-def load_yaml(fname: Path, clear_secrets: bool = True) -> Any:
+def load_yaml(fname: str, clear_secrets: bool = True) -> Any:
     if clear_secrets:
         _SECRET_VALUES.clear()
         _SECRET_CACHE.clear()
     return _load_yaml_internal(fname)
 
 
-def _load_yaml_internal(fname: Path) -> Any:
+def _load_yaml_internal(fname: str) -> Any:
     """Load a YAML file."""
     try:
-        with fname.open(encoding="utf-8") as f_handle:
+        with open(fname, encoding="utf-8") as f_handle:
             return parse_yaml(fname, f_handle)
     except (UnicodeDecodeError, OSError) as err:
         raise EsphomeError(f"Error reading file {fname}: {err}") from err
 
 
 def parse_yaml(
-    file_name: Path, file_handle: TextIOWrapper, yaml_loader=_load_yaml_internal
+    file_name: str, file_handle: TextIOWrapper, yaml_loader=_load_yaml_internal
 ) -> Any:
     """Parse a YAML file."""
     try:
@@ -488,9 +481,9 @@ def substitute_vars(config, vars):
 
 def _load_yaml_internal_with_type(
     loader_type: type[ESPHomeLoader] | type[ESPHomePurePythonLoader],
-    fname: Path,
+    fname: str,
     content: TextIOWrapper,
-    yaml_loader: Callable[[Path], dict[str, Any]],
+    yaml_loader: Any,
 ) -> Any:
     """Load a YAML file."""
     loader = loader_type(content, fname, yaml_loader)
@@ -502,17 +495,13 @@ def _load_yaml_internal_with_type(
         loader.dispose()
 
 
-def dump(dict_, show_secrets=False, sort_keys=False):
+def dump(dict_, show_secrets=False):
     """Dump YAML to a string and remove null."""
     if show_secrets:
         _SECRET_VALUES.clear()
         _SECRET_CACHE.clear()
     return yaml.dump(
-        dict_,
-        default_flow_style=False,
-        allow_unicode=True,
-        Dumper=ESPHomeDumper,
-        sort_keys=sort_keys,
+        dict_, default_flow_style=False, allow_unicode=True, Dumper=ESPHomeDumper
     )
 
 
@@ -521,14 +510,13 @@ def _is_file_valid(name: str) -> bool:
     return not name.startswith(".")
 
 
-def _find_files(directory: Path, pattern):
+def _find_files(directory, pattern):
     """Recursively load files in a directory."""
-    for root, dirs, files in os.walk(directory):
+    for root, dirs, files in os.walk(directory, topdown=True):
         dirs[:] = [d for d in dirs if _is_file_valid(d)]
-        for f in files:
-            filename = Path(f)
-            if _is_file_valid(f) and filename.match(pattern):
-                filename = Path(root) / filename
+        for basename in files:
+            if _is_file_valid(basename) and fnmatch.fnmatch(basename, pattern):
+                filename = os.path.join(root, basename)
                 yield filename
 
 
@@ -548,9 +536,6 @@ class ESPHomeDumper(yaml.SafeDumper):
         best_style = True
         if hasattr(mapping, "items"):
             mapping = list(mapping.items())
-        if self.sort_keys:
-            with suppress(TypeError):
-                mapping = sorted(mapping)
         for item_key, item_value in mapping:
             node_key = self.represent_data(item_key)
             node_value = self.represent_data(item_value)
@@ -640,4 +625,3 @@ ESPHomeDumper.add_multi_representer(TimePeriod, ESPHomeDumper.represent_stringif
 ESPHomeDumper.add_multi_representer(Lambda, ESPHomeDumper.represent_lambda)
 ESPHomeDumper.add_multi_representer(core.ID, ESPHomeDumper.represent_id)
 ESPHomeDumper.add_multi_representer(uuid.UUID, ESPHomeDumper.represent_stringify)
-ESPHomeDumper.add_multi_representer(Path, ESPHomeDumper.represent_stringify)

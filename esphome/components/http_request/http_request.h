@@ -15,7 +15,8 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome::http_request {
+namespace esphome {
+namespace http_request {
 
 struct Header {
   std::string name;
@@ -112,8 +113,8 @@ class HttpContainer : public Parented<HttpRequestComponent> {
 
 class HttpRequestResponseTrigger : public Trigger<std::shared_ptr<HttpContainer>, std::string &> {
  public:
-  void process(const std::shared_ptr<HttpContainer> &container, std::string &response_body) {
-    this->trigger(container, response_body);
+  void process(std::shared_ptr<HttpContainer> container, std::string &response_body) {
+    this->trigger(std::move(container), response_body);
   }
 };
 
@@ -123,7 +124,7 @@ class HttpRequestComponent : public Component {
   float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
 
   void set_useragent(const char *useragent) { this->useragent_ = useragent; }
-  void set_timeout(uint32_t timeout) { this->timeout_ = timeout; }
+  void set_timeout(uint16_t timeout) { this->timeout_ = timeout; }
   void set_watchdog_timeout(uint32_t watchdog_timeout) { this->watchdog_timeout_ = watchdog_timeout; }
   uint32_t get_watchdog_timeout() const { return this->watchdog_timeout_; }
   void set_follow_redirects(bool follow_redirects) { this->follow_redirects_ = follow_redirects; }
@@ -166,13 +167,13 @@ class HttpRequestComponent : public Component {
   }
 
  protected:
-  virtual std::shared_ptr<HttpContainer> perform(const std::string &url, const std::string &method,
-                                                 const std::string &body, const std::list<Header> &request_headers,
-                                                 const std::set<std::string> &collect_headers) = 0;
+  virtual std::shared_ptr<HttpContainer> perform(std::string url, std::string method, std::string body,
+                                                 std::list<Header> request_headers,
+                                                 std::set<std::string> collect_headers) = 0;
   const char *useragent_{nullptr};
   bool follow_redirects_{};
   uint16_t redirect_limit_{};
-  uint32_t timeout_{4500};
+  uint16_t timeout_{4500};
   uint32_t watchdog_timeout_{0};
 };
 
@@ -182,9 +183,7 @@ template<typename... Ts> class HttpRequestSendAction : public Action<Ts...> {
   TEMPLATABLE_VALUE(std::string, url)
   TEMPLATABLE_VALUE(const char *, method)
   TEMPLATABLE_VALUE(std::string, body)
-#ifdef USE_HTTP_REQUEST_RESPONSE
   TEMPLATABLE_VALUE(bool, capture_response)
-#endif
 
   void add_request_header(const char *key, TemplatableValue<const char *, Ts...> value) {
     this->request_headers_.insert({key, value});
@@ -196,20 +195,15 @@ template<typename... Ts> class HttpRequestSendAction : public Action<Ts...> {
 
   void set_json(std::function<void(Ts..., JsonObject)> json_func) { this->json_func_ = json_func; }
 
-#ifdef USE_HTTP_REQUEST_RESPONSE
-  Trigger<std::shared_ptr<HttpContainer>, std::string &, Ts...> *get_success_trigger_with_response() const {
-    return this->success_trigger_with_response_;
-  }
-#endif
-  Trigger<std::shared_ptr<HttpContainer>, Ts...> *get_success_trigger() const { return this->success_trigger_; }
+  void register_response_trigger(HttpRequestResponseTrigger *trigger) { this->response_triggers_.push_back(trigger); }
 
-  Trigger<Ts...> *get_error_trigger() const { return this->error_trigger_; }
+  void register_error_trigger(Trigger<> *trigger) { this->error_triggers_.push_back(trigger); }
 
   void set_max_response_buffer_size(size_t max_response_buffer_size) {
     this->max_response_buffer_size_ = max_response_buffer_size;
   }
 
-  void play(const Ts &...x) override {
+  void play(Ts... x) override {
     std::string body;
     if (this->body_.has_value()) {
       body = this->body_.value(x...);
@@ -234,29 +228,23 @@ template<typename... Ts> class HttpRequestSendAction : public Action<Ts...> {
     auto container = this->parent_->start(this->url_.value(x...), this->method_.value(x...), body, request_headers,
                                           this->collect_headers_);
 
-    auto captured_args = std::make_tuple(x...);
-
     if (container == nullptr) {
-      std::apply([this](Ts... captured_args_inner) { this->error_trigger_->trigger(captured_args_inner...); },
-                 captured_args);
+      for (auto *trigger : this->error_triggers_)
+        trigger->trigger();
       return;
     }
 
     size_t content_length = container->content_length;
     size_t max_length = std::min(content_length, this->max_response_buffer_size_);
 
-#ifdef USE_HTTP_REQUEST_RESPONSE
+    std::string response_body;
     if (this->capture_response_.value(x...)) {
-      std::string response_body;
       RAMAllocator<uint8_t> allocator;
       uint8_t *buf = allocator.allocate(max_length);
       if (buf != nullptr) {
         size_t read_index = 0;
         while (container->get_bytes_read() < max_length) {
           int read = container->read(buf + read_index, std::min<size_t>(max_length - read_index, 512));
-          if (read <= 0) {
-            break;
-          }
           App.feed_wdt();
           yield();
           read_index += read;
@@ -265,17 +253,19 @@ template<typename... Ts> class HttpRequestSendAction : public Action<Ts...> {
         response_body.assign((char *) buf, read_index);
         allocator.deallocate(buf, max_length);
       }
-      std::apply(
-          [this, &container, &response_body](Ts... captured_args_inner) {
-            this->success_trigger_with_response_->trigger(container, response_body, captured_args_inner...);
-          },
-          captured_args);
-    } else
-#endif
-    {
-      std::apply([this, &container](
-                     Ts... captured_args_inner) { this->success_trigger_->trigger(container, captured_args_inner...); },
-                 captured_args);
+    }
+
+    if (this->response_triggers_.size() == 1) {
+      // if there is only one trigger, no need to copy the response body
+      this->response_triggers_[0]->process(container, response_body);
+    } else {
+      for (auto *trigger : this->response_triggers_) {
+        // with multiple triggers, pass a copy of the response body to each
+        // one so that modifications made in one trigger are not visible to
+        // the others
+        auto response_body_copy = std::string(response_body);
+        trigger->process(container, response_body_copy);
+      }
     }
     container->end();
   }
@@ -293,15 +283,11 @@ template<typename... Ts> class HttpRequestSendAction : public Action<Ts...> {
   std::set<std::string> collect_headers_{"content-type", "content-length"};
   std::map<const char *, TemplatableValue<std::string, Ts...>> json_{};
   std::function<void(Ts..., JsonObject)> json_func_{nullptr};
-#ifdef USE_HTTP_REQUEST_RESPONSE
-  Trigger<std::shared_ptr<HttpContainer>, std::string &, Ts...> *success_trigger_with_response_ =
-      new Trigger<std::shared_ptr<HttpContainer>, std::string &, Ts...>();
-#endif
-  Trigger<std::shared_ptr<HttpContainer>, Ts...> *success_trigger_ =
-      new Trigger<std::shared_ptr<HttpContainer>, Ts...>();
-  Trigger<Ts...> *error_trigger_ = new Trigger<Ts...>();
+  std::vector<HttpRequestResponseTrigger *> response_triggers_{};
+  std::vector<Trigger<> *> error_triggers_{};
 
   size_t max_response_buffer_size_{SIZE_MAX};
 };
 
-}  // namespace esphome::http_request
+}  // namespace http_request
+}  // namespace esphome

@@ -171,7 +171,8 @@ async def sim800l_dial_to_code(config, action_id, template_arg, args):
 )
 async def sim800l_connect_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, paren)
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var
 
 
 SIM800L_SEND_USSD_SCHEMA = cv.Schema(
@@ -200,4 +201,5 @@ async def sim800l_send_ussd_to_code(config, action_id, template_arg, args):
 )
 async def sim800l_disconnect_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, paren)
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var

@@ -38,4 +38,3 @@ def setup_home_assistant_entity(var, config):
     cg.add(var.set_entity_id(config[CONF_ENTITY_ID]))
     if CONF_ATTRIBUTE in config:
         cg.add(var.set_attribute(config[CONF_ATTRIBUTE]))
-    cg.add_define("USE_API_HOMEASSISTANT_STATES")

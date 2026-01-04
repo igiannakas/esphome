@@ -10,7 +10,7 @@ from esphome.const import (
     CONF_SPEED,
     CONF_TARGET,
 )
-from esphome.core import CORE, CoroPriority, coroutine_with_priority
+from esphome.core import CORE, coroutine_with_priority
 
 IS_PLATFORM_COMPONENT = True
 
@@ -27,7 +27,8 @@ SetDecelerationAction = stepper_ns.class_("SetDecelerationAction", automation.Ac
 def validate_acceleration(value):
     value = cv.string(value)
     for suffix in ("steps/s^2", "steps/s*s", "steps/s/s", "steps/ss", "steps/(s*s)"):
-        value = value.removesuffix(suffix)
+        if value.endswith(suffix):
+            value = value[: -len(suffix)]
 
     if value == "inf":
         return 1e6
@@ -47,7 +48,8 @@ def validate_acceleration(value):
 def validate_speed(value):
     value = cv.string(value)
     for suffix in ("steps/s", "steps/s"):
-        value = value.removesuffix(suffix)
+        if value.endswith(suffix):
+            value = value[: -len(suffix)]
 
     if value == "inf":
         return 1e6
@@ -178,6 +180,6 @@ async def stepper_set_deceleration_to_code(config, action_id, template_arg, args
     return var
 
 
-@coroutine_with_priority(CoroPriority.CORE)
+@coroutine_with_priority(100.0)
 async def to_code(config):
     cg.add_global(stepper_ns.using)

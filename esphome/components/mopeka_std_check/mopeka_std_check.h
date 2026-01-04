@@ -15,7 +15,6 @@ namespace mopeka_std_check {
 enum SensorType {
   STANDARD = 0x02,
   XL = 0x03,
-  STANDARD_ALT = 0x44,
   ETRAILER = 0x46,
 };
 

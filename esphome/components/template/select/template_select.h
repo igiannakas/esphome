@@ -4,13 +4,13 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 #include "esphome/core/preferences.h"
-#include "esphome/core/template_lambda.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
-class TemplateSelect final : public select::Select, public PollingComponent {
+class TemplateSelect : public select::Select, public PollingComponent {
  public:
-  template<typename F> void set_template(F &&f) { this->f_.set(std::forward<F>(f)); }
+  void set_template(std::function<optional<std::string>()> &&f) { this->f_ = f; }
 
   void setup() override;
   void update() override;
@@ -19,18 +19,19 @@ class TemplateSelect final : public select::Select, public PollingComponent {
 
   Trigger<std::string> *get_set_trigger() const { return this->set_trigger_; }
   void set_optimistic(bool optimistic) { this->optimistic_ = optimistic; }
-  void set_initial_option_index(size_t initial_option_index) { this->initial_option_index_ = initial_option_index; }
+  void set_initial_option(const std::string &initial_option) { this->initial_option_ = initial_option; }
   void set_restore_value(bool restore_value) { this->restore_value_ = restore_value; }
 
  protected:
-  void control(size_t index) override;
+  void control(const std::string &value) override;
   bool optimistic_ = false;
-  size_t initial_option_index_{0};
+  std::string initial_option_;
   bool restore_value_ = false;
   Trigger<std::string> *set_trigger_ = new Trigger<std::string>();
-  TemplateLambda<std::string> f_;
+  optional<std::function<optional<std::string>()>> f_;
 
   ESPPreferenceObject pref_;
 };
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome

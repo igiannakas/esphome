@@ -81,11 +81,13 @@ void NextionComponent::update_component_settings(bool force_update) {
 
     this->component_flags_.visible_needs_update = false;
 
-    this->nextion_->set_component_visibility(name_to_send.c_str(), this->component_flags_.visible);
-    if (!this->component_flags_.visible) {
+    if (this->component_flags_.visible) {
+      this->nextion_->show_component(name_to_send.c_str());
+      this->send_state_to_nextion();
+    } else {
+      this->nextion_->hide_component(name_to_send.c_str());
       return;
     }
-    this->send_state_to_nextion();
   }
 
   if (this->component_flags_.bco_needs_update || (force_update && this->component_flags_.bco2_is_set)) {

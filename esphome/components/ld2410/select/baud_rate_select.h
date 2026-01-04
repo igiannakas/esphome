@@ -3,14 +3,16 @@
 #include "esphome/components/select/select.h"
 #include "../ld2410.h"
 
-namespace esphome::ld2410 {
+namespace esphome {
+namespace ld2410 {
 
 class BaudRateSelect : public select::Select, public Parented<LD2410Component> {
  public:
   BaudRateSelect() = default;
 
  protected:
-  void control(size_t index) override;
+  void control(const std::string &value) override;
 };
 
-}  // namespace esphome::ld2410
+}  // namespace ld2410
+}  // namespace esphome

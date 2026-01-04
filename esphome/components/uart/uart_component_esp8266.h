@@ -9,7 +9,8 @@
 #include "esphome/core/log.h"
 #include "uart_component.h"
 
-namespace esphome::uart {
+namespace esphome {
+namespace uart {
 
 class ESP8266SoftwareSerial {
  public:
@@ -87,5 +88,7 @@ class ESP8266UartComponent : public UARTComponent, public Component {
   static bool serial0_in_use;  // NOLINT(cppcoreguidelines-avoid-non-const-global-variables)
 };
 
-}  // namespace esphome::uart
+}  // namespace uart
+}  // namespace esphome
+
 #endif  // USE_ESP8266

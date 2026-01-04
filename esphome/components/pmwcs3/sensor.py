@@ -114,7 +114,8 @@ PMWCS3_CALIBRATION_SCHEMA = cv.Schema(
 )
 async def pmwcs3_calibration_to_code(config, action_id, template_arg, args):
     parent = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, parent)
+    var = cg.new_Pvariable(action_id, template_arg, parent)
+    return var
 
 
 PMWCS3_NEW_I2C_ADDRESS_SCHEMA = cv.maybe_simple_value(

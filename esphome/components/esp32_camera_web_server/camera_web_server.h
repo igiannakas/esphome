@@ -18,7 +18,7 @@ namespace esp32_camera_web_server {
 
 enum Mode { STREAM, SNAPSHOT };
 
-class CameraWebServer : public Component, public camera::CameraListener {
+class CameraWebServer : public Component {
  public:
   CameraWebServer();
   ~CameraWebServer();
@@ -30,9 +30,6 @@ class CameraWebServer : public Component, public camera::CameraListener {
   void set_port(uint16_t port) { this->port_ = port; }
   void set_mode(Mode mode) { this->mode_ = mode; }
   void loop() override;
-
-  /// CameraListener interface
-  void on_camera_image(const std::shared_ptr<camera::CameraImage> &image) override;
 
  protected:
   std::shared_ptr<camera::CameraImage> wait_for_image_();

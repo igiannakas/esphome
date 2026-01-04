@@ -10,8 +10,7 @@ from esphome.loader import get_component
 CODEOWNERS = ["@clydebarrow"]
 MULTI_CONF = True
 
-mapping_ns = cg.esphome_ns.namespace("mapping")
-mapping_class = mapping_ns.class_("Mapping")
+map_ = cg.std_ns.class_("map")
 
 CONF_ENTRIES = "entries"
 CONF_CLASS = "class"
@@ -30,11 +29,7 @@ class IndexType:
 
 INDEX_TYPES = {
     "int": IndexType(cv.int_, cg.int_, int),
-    "string": IndexType(
-        cv.string,
-        cg.std_string,
-        str,
-    ),
+    "string": IndexType(cv.string, cg.std_string, str),
 }
 
 
@@ -52,7 +47,7 @@ def to_schema(value):
 
 BASE_SCHEMA = cv.Schema(
     {
-        cv.Required(CONF_ID): cv.declare_id(mapping_class),
+        cv.Required(CONF_ID): cv.declare_id(map_),
         cv.Required(CONF_FROM): cv.one_of(*INDEX_TYPES, lower=True),
         cv.Required(CONF_TO): cv.string,
     },
@@ -128,15 +123,12 @@ async def to_code(config):
         if list(entries.values())[0].op != ".":
             value_type = value_type.operator("ptr")
     varid = config[CONF_ID]
-    varid.type = mapping_class.template(
-        index_type,
-        value_type,
-    )
+    varid.type = map_.template(index_type, value_type)
     var = MockObj(varid, ".")
-    decl = VariableDeclarationExpression(varid.type, "", varid, static=True)
+    decl = VariableDeclarationExpression(varid.type, "", varid)
     add_global(decl)
     CORE.register_variable(varid, var)
 
     for key, value in entries.items():
-        cg.add(var.set(key, value))
+        cg.add(var.insert((key, value)))
     return var

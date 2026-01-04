@@ -17,12 +17,10 @@ from esphome.const import (
     CONF_COMPILE_PROCESS_LIMIT,
     CONF_DEBUG_SCHEDULER,
     CONF_DEVICES,
-    CONF_ENVIRONMENT_VARIABLES,
     CONF_ESPHOME,
     CONF_FRIENDLY_NAME,
     CONF_ID,
     CONF_INCLUDES,
-    CONF_INCLUDES_C,
     CONF_LIBRARIES,
     CONF_MIN_VERSION,
     CONF_NAME,
@@ -41,12 +39,7 @@ from esphome.const import (
     PlatformFramework,
     __version__ as ESPHOME_VERSION,
 )
-from esphome.core import (
-    CORE,
-    KEY_CONTROLLER_REGISTRY_COUNT,
-    CoroPriority,
-    coroutine_with_priority,
-)
+from esphome.core import CORE, coroutine_with_priority
 from esphome.helpers import (
     copy_file_if_changed,
     fnv1a_32bit_hash,
@@ -87,7 +80,7 @@ def validate_hostname(config):
         _LOGGER.warning(
             "'%s': Using the '_' (underscore) character in the hostname is discouraged "
             "as it can cause problems with some DHCP and local name services. "
-            "For more information, see https://esphome.io/guides/faq/#why-shouldnt-i-use-underscores-in-my-device-name",
+            "For more information, see https://esphome.io/guides/faq.html#why-shouldn-t-i-use-underscores-in-my-device-name",
             config[CONF_NAME],
         )
     return config
@@ -143,21 +136,21 @@ def validate_ids_and_references(config: ConfigType) -> ConfigType:
     return config
 
 
-def valid_include(value: str) -> str:
+def valid_include(value):
     # Look for "<...>" includes
     if value.startswith("<") and value.endswith(">"):
         return value
     try:
-        return str(cv.directory(value))
+        return cv.directory(value)
     except cv.Invalid:
         pass
-    path = cv.file_(value)
-    ext = path.suffix
+    value = cv.file_(value)
+    _, ext = os.path.splitext(value)
     if ext not in VALID_INCLUDE_EXTS:
         raise cv.Invalid(
             f"Include has invalid file extension {ext} - valid extensions are {', '.join(VALID_INCLUDE_EXTS)}"
         )
-    return str(path)
+    return value
 
 
 def valid_project_name(value: str):
@@ -186,14 +179,14 @@ else:
 AREA_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(Area),
-        cv.Required(CONF_NAME): cv.All(cv.string_no_slash, cv.Length(max=120)),
+        cv.Required(CONF_NAME): cv.string,
     }
 )
 
 DEVICE_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_ID): cv.declare_id(Device),
-        cv.Required(CONF_NAME): cv.All(cv.string_no_slash, cv.Length(max=120)),
+        cv.Required(CONF_NAME): cv.string,
         cv.Optional(CONF_AREA_ID): cv.use_id(Area),
     }
 )
@@ -207,20 +200,13 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.Required(CONF_NAME): cv.valid_name,
-            cv.Optional(CONF_FRIENDLY_NAME, ""): cv.All(
-                cv.string_no_slash, cv.Length(max=120)
-            ),
+            cv.Optional(CONF_FRIENDLY_NAME, ""): cv.string,
             cv.Optional(CONF_AREA): validate_area_config,
-            cv.Optional(CONF_COMMENT): cv.All(cv.string, cv.Length(max=255)),
+            cv.Optional(CONF_COMMENT): cv.string,
             cv.Required(CONF_BUILD_PATH): cv.string,
             cv.Optional(CONF_PLATFORMIO_OPTIONS, default={}): cv.Schema(
                 {
                     cv.string_strict: cv.Any([cv.string], cv.string),
-                }
-            ),
-            cv.Optional(CONF_ENVIRONMENT_VARIABLES, default={}): cv.Schema(
-                {
-                    cv.string_strict: cv.string,
                 }
             ),
             cv.Optional(CONF_ON_BOOT): automation.validate_automation(
@@ -241,7 +227,6 @@ CONFIG_SCHEMA = cv.All(
                 }
             ),
             cv.Optional(CONF_INCLUDES, default=[]): cv.ensure_list(valid_include),
-            cv.Optional(CONF_INCLUDES_C, default=[]): cv.ensure_list(valid_include),
             cv.Optional(CONF_LIBRARIES, default=[]): cv.ensure_list(cv.string_strict),
             cv.Optional(CONF_NAME_ADD_MAC_SUFFIX, default=False): cv.boolean,
             cv.Optional(CONF_DEBUG_SCHEDULER, default=False): cv.boolean,
@@ -317,17 +302,6 @@ def _list_target_platforms():
     return target_platforms
 
 
-def _sort_includes_by_type(includes: list[str]) -> tuple[list[str], list[str]]:
-    system_includes = []
-    other_includes = []
-    for include in includes:
-        if include.startswith("<") and include.endswith(">"):
-            system_includes.append(include)
-        else:
-            other_includes.append(include)
-    return system_includes, other_includes
-
-
 def preload_core_config(config, result) -> str:
     with cv.prepend_path(CONF_ESPHOME):
         conf = PRELOAD_CONFIG_SCHEMA(config[CONF_ESPHOME])
@@ -337,13 +311,13 @@ def preload_core_config(config, result) -> str:
     CORE.data[KEY_CORE] = {}
 
     if CONF_BUILD_PATH not in conf:
-        build_path = Path(get_str_env("ESPHOME_BUILD_PATH", "build"))
-        conf[CONF_BUILD_PATH] = str(build_path / CORE.name)
-    CORE.build_path = CORE.data_dir / conf[CONF_BUILD_PATH]
+        build_path = get_str_env("ESPHOME_BUILD_PATH", "build")
+        conf[CONF_BUILD_PATH] = os.path.join(build_path, CORE.name)
+    CORE.build_path = CORE.relative_internal_path(conf[CONF_BUILD_PATH])
 
     target_platforms = []
 
-    for domain in config:
+    for domain, _ in config.items():
         if domain.startswith("."):
             continue
         if _is_target_platform(domain):
@@ -365,39 +339,27 @@ def preload_core_config(config, result) -> str:
     return target_platforms[0]
 
 
-def include_file(path: Path, basename: Path, is_c_header: bool = False):
-    parts = basename.parts
+def include_file(path, basename):
+    parts = basename.split(os.path.sep)
     dst = CORE.relative_src_path(*parts)
     copy_file_if_changed(path, dst)
 
-    ext = path.suffix
+    _, ext = os.path.splitext(path)
     if ext in [".h", ".hpp", ".tcc"]:
         # Header, add include statement
-        if is_c_header:
-            # Wrap in extern "C" block for C headers
-            cg.add_global(
-                cg.RawStatement(f'extern "C" {{\n  #include "{basename}"\n}}')
-            )
-        else:
-            # Regular include
-            cg.add_global(cg.RawStatement(f'#include "{basename}"'))
+        cg.add_global(cg.RawStatement(f'#include "{basename}"'))
 
 
 ARDUINO_GLUE_CODE = """\
-#undef yield
 #define yield() esphome::yield()
-#undef millis
 #define millis() esphome::millis()
-#undef micros
 #define micros() esphome::micros()
-#undef delay
 #define delay(x) esphome::delay(x)
-#undef delayMicroseconds
 #define delayMicroseconds(x) esphome::delayMicroseconds(x)
 """
 
 
-@coroutine_with_priority(CoroPriority.WORKAROUNDS)
+@coroutine_with_priority(-999.0)
 async def add_arduino_global_workaround():
     # The Arduino framework defined these itself in the global
     # namespace. For the esphome codebase that is not a problem,
@@ -414,38 +376,32 @@ async def add_arduino_global_workaround():
         cg.add_global(cg.RawStatement(line))
 
 
-@coroutine_with_priority(CoroPriority.FINAL)
-async def add_includes(includes: list[str], is_c_header: bool = False) -> None:
+@coroutine_with_priority(-1000.0)
+async def add_includes(includes):
     # Add includes at the very end, so that the included files can access global variables
     for include in includes:
         path = CORE.relative_config_path(include)
-        if path.is_dir():
+        if os.path.isdir(path):
             # Directory, copy tree
             for p in walk_files(path):
-                basename = p.relative_to(path.parent)
-                include_file(p, basename, is_c_header)
+                basename = os.path.relpath(p, os.path.dirname(path))
+                include_file(p, basename)
         else:
             # Copy file
-            basename = Path(path.name)
-            include_file(path, basename, is_c_header)
+            basename = os.path.basename(path)
+            include_file(path, basename)
 
 
-@coroutine_with_priority(CoroPriority.FINAL)
+@coroutine_with_priority(-1000.0)
 async def _add_platformio_options(pio_options):
     # Add includes at the very end, so that they override everything
     for key, val in pio_options.items():
-        if key in ["build_flags", "lib_ignore"] and not isinstance(val, list):
+        if key == "build_flags" and not isinstance(val, list):
             val = [val]
         cg.add_platformio_option(key, val)
 
 
-@coroutine_with_priority(CoroPriority.FINAL)
-async def _add_environment_variables(env_vars: dict[str, str]) -> None:
-    # Set environment variables for the build process
-    os.environ.update(env_vars)
-
-
-@coroutine_with_priority(CoroPriority.AUTOMATION)
+@coroutine_with_priority(30.0)
 async def _add_automations(config):
     for conf in config.get(CONF_ON_BOOT, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], conf.get(CONF_PRIORITY))
@@ -463,39 +419,13 @@ async def _add_automations(config):
         await automation.build_automation(trigger, [], conf)
 
 
-# Datetime component has special subtypes that need additional defines
-DATETIME_SUBTYPES = {"date", "time", "datetime"}
-
-
-@coroutine_with_priority(CoroPriority.FINAL)
-async def _add_platform_defines() -> None:
-    # Generate compile-time defines for platforms that have actual entities
-    # Only add USE_* and count defines when there are entities
+@coroutine_with_priority(-100.0)
+async def _add_platform_reserves() -> None:
     for platform_name, count in sorted(CORE.platform_counts.items()):
-        if count <= 0:
-            continue
-
-        define_name = f"ESPHOME_ENTITY_{platform_name.upper()}_COUNT"
-        cg.add_define(define_name, count)
-
-        # Datetime subtypes only use USE_DATETIME_* defines
-        if platform_name in DATETIME_SUBTYPES:
-            cg.add_define(f"USE_DATETIME_{platform_name.upper()}")
-        else:
-            # Regular platforms use USE_* defines
-            cg.add_define(f"USE_{platform_name.upper()}")
+        cg.add(cg.RawStatement(f"App.reserve_{platform_name}({count});"), prepend=True)
 
 
-@coroutine_with_priority(CoroPriority.FINAL)
-async def _add_controller_registry_define() -> None:
-    # Generate StaticVector size for ControllerRegistry
-    controller_count = CORE.data.get(KEY_CONTROLLER_REGISTRY_COUNT, 0)
-    if controller_count > 0:
-        cg.add_define("USE_CONTROLLER_REGISTRY")
-        cg.add_define("CONTROLLER_REGISTRY_MAX", controller_count)
-
-
-@coroutine_with_priority(CoroPriority.CORE)
+@coroutine_with_priority(100.0)
 async def to_code(config: ConfigType) -> None:
     cg.add_global(cg.global_ns.namespace("esphome").using)
     # These can be used by user lambdas, put them to default scope
@@ -507,14 +437,17 @@ async def to_code(config: ConfigType) -> None:
         cg.App.pre_setup(
             config[CONF_NAME],
             config[CONF_FRIENDLY_NAME],
+            config.get(CONF_COMMENT, ""),
+            cg.RawExpression('__DATE__ ", " __TIME__'),
             config[CONF_NAME_ADD_MAC_SUFFIX],
         )
     )
-    # Define component count for static allocation
-    cg.add_define("ESPHOME_COMPONENT_COUNT", len(CORE.component_ids))
+    # Reserve space for components to avoid reallocation during registration
+    cg.add(
+        cg.RawStatement(f"App.reserve_components({len(CORE.component_ids)});"),
+    )
 
-    CORE.add_job(_add_platform_defines)
-    CORE.add_job(_add_controller_registry_define)
+    CORE.add_job(_add_platform_reserves)
 
     CORE.add_job(_add_automations, config)
 
@@ -542,29 +475,23 @@ async def to_code(config: ConfigType) -> None:
     if config[CONF_DEBUG_SCHEDULER]:
         cg.add_define("ESPHOME_DEBUG_SCHEDULER")
 
-    if CORE.using_arduino:
+    if CORE.using_arduino and not CORE.is_bk72xx:
         CORE.add_job(add_arduino_global_workaround)
 
     if config[CONF_INCLUDES]:
-        system_includes, other_includes = _sort_includes_by_type(config[CONF_INCLUDES])
+        # Get the <...> includes
+        system_includes = []
+        other_includes = []
+        for include in config[CONF_INCLUDES]:
+            if include.startswith("<") and include.endswith(">"):
+                system_includes.append(include)
+            else:
+                other_includes.append(include)
         # <...> includes should be at the start
         for include in system_includes:
             cg.add_global(cg.RawStatement(f"#include {include}"), prepend=True)
         # Other includes should be at the end
-        CORE.add_job(add_includes, other_includes, False)
-
-    if config[CONF_INCLUDES_C]:
-        system_includes, other_includes = _sort_includes_by_type(
-            config[CONF_INCLUDES_C]
-        )
-        # <...> includes should be at the start
-        for include in system_includes:
-            cg.add_global(
-                cg.RawStatement(f'extern "C" {{\n  #include {include}\n}}'),
-                prepend=True,
-            )
-        # Other includes should be at the end
-        CORE.add_job(add_includes, other_includes, True)
+        CORE.add_job(add_includes, other_includes)
 
     if project_conf := config.get(CONF_PROJECT):
         cg.add_define("ESPHOME_PROJECT_NAME", project_conf[CONF_NAME])
@@ -580,9 +507,6 @@ async def to_code(config: ConfigType) -> None:
     if config[CONF_PLATFORMIO_OPTIONS]:
         CORE.add_job(_add_platformio_options, config[CONF_PLATFORMIO_OPTIONS])
 
-    if config[CONF_ENVIRONMENT_VARIABLES]:
-        CORE.add_job(_add_environment_variables, config[CONF_ENVIRONMENT_VARIABLES])
-
     # Process areas
     all_areas: list[dict[str, str | core.ID]] = []
     if CONF_AREA in config:
@@ -590,8 +514,8 @@ async def to_code(config: ConfigType) -> None:
     all_areas.extend(config[CONF_AREAS])
 
     if all_areas:
+        cg.add(cg.RawStatement(f"App.reserve_area({len(all_areas)});"))
         cg.add_define("USE_AREAS")
-        cg.add_define("ESPHOME_AREA_COUNT", len(all_areas))
 
         for area_conf in all_areas:
             area_id: core.ID = area_conf[CONF_ID]
@@ -608,9 +532,9 @@ async def to_code(config: ConfigType) -> None:
     if not devices:
         return
 
-    # Define device count for static allocation
+    # Reserve space for devices
+    cg.add(cg.RawStatement(f"App.reserve_device({len(devices)});"))
     cg.add_define("USE_DEVICES")
-    cg.add_define("ESPHOME_DEVICE_COUNT", len(devices))
 
     # Process each device
     for dev_conf in devices:

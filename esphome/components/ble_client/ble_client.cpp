@@ -7,7 +7,8 @@
 
 #ifdef USE_ESP32
 
-namespace esphome::ble_client {
+namespace esphome {
+namespace ble_client {
 
 static const char *const TAG = "ble_client";
 
@@ -38,7 +39,7 @@ void BLEClient::set_enabled(bool enabled) {
     return;
   this->enabled = enabled;
   if (!enabled) {
-    ESP_LOGI(TAG, "[%s] Disabling BLE client.", this->address_str());
+    ESP_LOGI(TAG, "[%s] Disabling BLE client.", this->address_str().c_str());
     this->disconnect();
   }
 }
@@ -81,6 +82,7 @@ bool BLEClient::all_nodes_established_() {
   return true;
 }
 
-}  // namespace esphome::ble_client
+}  // namespace ble_client
+}  // namespace esphome
 
 #endif

@@ -11,9 +11,6 @@ from esphome.const import (
     PlatformFramework,
 )
 from esphome.core import CORE, coroutine_with_priority
-from esphome.coroutine import CoroPriority
-
-OTA_STATE_LISTENER_KEY = "ota_state_listener"
 
 CODEOWNERS = ["@esphome/core"]
 AUTO_LOAD = ["md5", "safe_mode"]
@@ -85,10 +82,12 @@ BASE_OTA_SCHEMA = cv.Schema(
 )
 
 
-@coroutine_with_priority(CoroPriority.OTA_UPDATES)
+@coroutine_with_priority(54.0)
 async def to_code(config):
     cg.add_define("USE_OTA")
-    CORE.add_job(final_step)
+
+    if CORE.is_esp32 and CORE.using_arduino:
+        cg.add_library("Update", None)
 
     if CORE.is_rp2040 and CORE.using_arduino:
         cg.add_library("Updater", None)
@@ -122,33 +121,14 @@ async def ota_to_code(var, config):
         await automation.build_automation(trigger, [(cg.uint8, "x")], conf)
         use_state_callback = True
     if use_state_callback:
-        request_ota_state_listeners()
-
-
-def request_ota_state_listeners() -> None:
-    """Request that OTA state listeners be compiled in.
-
-    Components that need to be notified about OTA state changes (start, progress,
-    complete, error) should call this function during their code generation.
-    This enables the add_state_listener() API on OTAComponent.
-    """
-    CORE.data[OTA_STATE_LISTENER_KEY] = True
-
-
-@coroutine_with_priority(CoroPriority.FINAL)
-async def final_step():
-    """Final code generation step to configure optional OTA features."""
-    if CORE.data.get(OTA_STATE_LISTENER_KEY, False):
-        cg.add_define("USE_OTA_STATE_LISTENER")
+        cg.add_define("USE_OTA_STATE_CALLBACK")
 
 
 FILTER_SOURCE_FILES = filter_source_files_from_platform(
     {
-        "ota_backend_esp_idf.cpp": {
-            PlatformFramework.ESP32_ARDUINO,
-            PlatformFramework.ESP32_IDF,
-        },
-        "ota_backend_esp8266.cpp": {PlatformFramework.ESP8266_ARDUINO},
+        "ota_backend_arduino_esp32.cpp": {PlatformFramework.ESP32_ARDUINO},
+        "ota_backend_esp_idf.cpp": {PlatformFramework.ESP32_IDF},
+        "ota_backend_arduino_esp8266.cpp": {PlatformFramework.ESP8266_ARDUINO},
         "ota_backend_arduino_rp2040.cpp": {PlatformFramework.RP2040_ARDUINO},
         "ota_backend_arduino_libretiny.cpp": {
             PlatformFramework.BK72XX_ARDUINO,

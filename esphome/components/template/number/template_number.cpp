@@ -1,7 +1,8 @@
 #include "template_number.h"
 #include "esphome/core/log.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
 static const char *const TAG = "template.number";
 
@@ -13,7 +14,7 @@ void TemplateNumber::setup() {
   if (!this->restore_value_) {
     value = this->initial_value_;
   } else {
-    this->pref_ = global_preferences->make_preference<float>(this->get_preference_hash());
+    this->pref_ = global_preferences->make_preference<float>(this->get_object_id_hash());
     if (!this->pref_.load(&value)) {
       if (!std::isnan(this->initial_value_)) {
         value = this->initial_value_;
@@ -29,10 +30,11 @@ void TemplateNumber::update() {
   if (!this->f_.has_value())
     return;
 
-  auto val = this->f_();
-  if (val.has_value()) {
-    this->publish_state(*val);
-  }
+  auto val = (*this->f_)();
+  if (!val.has_value())
+    return;
+
+  this->publish_state(*val);
 }
 
 void TemplateNumber::control(float value) {
@@ -50,4 +52,5 @@ void TemplateNumber::dump_config() {
   LOG_UPDATE_INTERVAL(this);
 }
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome

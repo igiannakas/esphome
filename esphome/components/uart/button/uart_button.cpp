@@ -1,7 +1,8 @@
 #include "uart_button.h"
 #include "esphome/core/log.h"
 
-namespace esphome::uart {
+namespace esphome {
+namespace uart {
 
 static const char *const TAG = "uart.button";
 
@@ -12,4 +13,5 @@ void UARTButton::press_action() {
 
 void UARTButton::dump_config() { LOG_BUTTON("", "UART Button", this); }
 
-}  // namespace esphome::uart
+}  // namespace uart
+}  // namespace esphome

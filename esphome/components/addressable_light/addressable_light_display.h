@@ -25,13 +25,11 @@ class AddressableLightDisplay : public display::DisplayBuffer {
       if (enabled_ && !enabled) {  // enabled -> disabled
         // - Tell the parent light to refresh, effectively wiping the display. Also
         //   restores the previous effect (if any).
-        if (this->last_effect_index_.has_value()) {
-          light_state_->make_call().set_effect(*this->last_effect_index_).perform();
-        }
+        light_state_->make_call().set_effect(this->last_effect_).perform();
 
       } else if (!enabled_ && enabled) {  // disabled -> enabled
-        // - Save the current effect index.
-        this->last_effect_index_ = light_state_->get_current_effect_index();
+        // - Save the current effect.
+        this->last_effect_ = light_state_->get_effect_name();
         // - Disable any current effect.
         light_state_->make_call().set_effect(0).perform();
       }
@@ -58,7 +56,7 @@ class AddressableLightDisplay : public display::DisplayBuffer {
   int32_t width_;
   int32_t height_;
   std::vector<Color> addressable_light_buffer_;
-  optional<uint32_t> last_effect_index_;
+  optional<std::string> last_effect_;
   optional<std::function<int(int, int)>> pixel_mapper_f_;
 };
 }  // namespace addressable_light

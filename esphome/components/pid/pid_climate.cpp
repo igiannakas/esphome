@@ -54,10 +54,11 @@ void PIDClimate::control(const climate::ClimateCall &call) {
 }
 climate::ClimateTraits PIDClimate::traits() {
   auto traits = climate::ClimateTraits();
-  traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE | climate::CLIMATE_SUPPORTS_ACTION);
+  traits.set_supports_current_temperature(true);
+  traits.set_supports_two_point_target_temperature(false);
 
   if (this->humidity_sensor_ != nullptr)
-    traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_HUMIDITY);
+    traits.set_supports_current_humidity(true);
 
   traits.set_supported_modes({climate::CLIMATE_MODE_OFF});
   if (supports_cool_())
@@ -67,6 +68,7 @@ climate::ClimateTraits PIDClimate::traits() {
   if (supports_heat_() && supports_cool_())
     traits.add_supported_mode(climate::CLIMATE_MODE_HEAT_COOL);
 
+  traits.set_supports_action(true);
   return traits;
 }
 void PIDClimate::dump_config() {
@@ -162,14 +164,14 @@ void PIDClimate::start_autotune(std::unique_ptr<PIDAutotuner> &&autotune) {
   float min_value = this->supports_cool_() ? -1.0f : 0.0f;
   float max_value = this->supports_heat_() ? 1.0f : 0.0f;
   this->autotuner_->config(min_value, max_value);
-  this->autotuner_->set_autotuner_id(this->get_name());
+  this->autotuner_->set_autotuner_id(this->get_object_id());
 
   ESP_LOGI(TAG,
            "%s: Autotune has started. This can take a long time depending on the "
            "responsiveness of your system. Your system "
            "output will be altered to deliberately oscillate above and below the setpoint multiple times. "
            "Until your sensor provides a reading, the autotuner may display \'nan\'",
-           this->get_name().c_str());
+           this->get_object_id().c_str());
 
   this->set_interval("autotune-progress", 10000, [this]() {
     if (this->autotuner_ != nullptr && !this->autotuner_->is_finished())
@@ -178,7 +180,7 @@ void PIDClimate::start_autotune(std::unique_ptr<PIDAutotuner> &&autotune) {
 
   if (mode != climate::CLIMATE_MODE_HEAT_COOL) {
     ESP_LOGW(TAG, "%s: !!! For PID autotuner you need to set AUTO (also called heat/cool) mode!",
-             this->get_name().c_str());
+             this->get_object_id().c_str());
   }
 }
 

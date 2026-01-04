@@ -11,7 +11,8 @@
 #include "esphome/components/logger/logger.h"
 #endif
 
-namespace esphome::uart {
+namespace esphome {
+namespace uart {
 
 static const char *const TAG = "uart.arduino_rp2040";
 
@@ -51,20 +52,7 @@ uint16_t RP2040UartComponent::get_config() {
 }
 
 void RP2040UartComponent::setup() {
-  auto setup_pin_if_needed = [](InternalGPIOPin *pin) {
-    if (!pin) {
-      return;
-    }
-    const auto mask = gpio::Flags::FLAG_OPEN_DRAIN | gpio::Flags::FLAG_PULLUP | gpio::Flags::FLAG_PULLDOWN;
-    if ((pin->get_flags() & mask) != gpio::Flags::FLAG_NONE) {
-      pin->setup();
-    }
-  };
-
-  setup_pin_if_needed(this->rx_pin_);
-  if (this->rx_pin_ != this->tx_pin_) {
-    setup_pin_if_needed(this->tx_pin_);
-  }
+  ESP_LOGCONFIG(TAG, "Running setup");
 
   uint16_t config = get_config();
 
@@ -192,5 +180,7 @@ void RP2040UartComponent::flush() {
   this->serial_->flush();
 }
 
-}  // namespace esphome::uart
+}  // namespace uart
+}  // namespace esphome
+
 #endif  // USE_RP2040

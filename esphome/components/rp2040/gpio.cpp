@@ -64,8 +64,10 @@ void RP2040GPIOPin::pin_mode(gpio::Flags flags) {
   pinMode(pin_, flags_to_mode(flags, pin_));  // NOLINT
 }
 
-size_t RP2040GPIOPin::dump_summary(char *buffer, size_t len) const {
-  return snprintf(buffer, len, "GPIO%u", this->pin_);
+std::string RP2040GPIOPin::dump_summary() const {
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "GPIO%u", pin_);
+  return buffer;
 }
 
 bool RP2040GPIOPin::digital_read() {

@@ -1,7 +1,6 @@
 #include "ble_advertising.h"
 
 #ifdef USE_ESP32
-#ifdef USE_ESP32_BLE_ADVERTISING
 
 #include <cstdio>
 #include <cstring>
@@ -9,7 +8,8 @@
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
 
-namespace esphome::esp32_ble {
+namespace esphome {
+namespace esp32_ble {
 
 static const char *const TAG = "esp32_ble.advertising";
 
@@ -43,7 +43,7 @@ void BLEAdvertising::remove_service_uuid(ESPBTUUID uuid) {
                                  this->advertising_uuids_.end());
 }
 
-void BLEAdvertising::set_service_data(std::span<const uint8_t> data) {
+void BLEAdvertising::set_service_data(const std::vector<uint8_t> &data) {
   delete[] this->advertising_data_.p_service_data;
   this->advertising_data_.p_service_data = nullptr;
   this->advertising_data_.service_data_len = data.size();
@@ -52,10 +52,6 @@ void BLEAdvertising::set_service_data(std::span<const uint8_t> data) {
     this->advertising_data_.p_service_data = new uint8_t[data.size()];
     memcpy(this->advertising_data_.p_service_data, data.data(), data.size());
   }
-}
-
-void BLEAdvertising::set_service_data(const std::vector<uint8_t> &data) {
-  this->set_service_data(std::span<const uint8_t>(data));
 }
 
 void BLEAdvertising::set_manufacturer_data(const std::vector<uint8_t> &data) {
@@ -88,7 +84,7 @@ esp_err_t BLEAdvertising::services_advertisement_() {
   esp_err_t err;
 
   this->advertising_data_.set_scan_rsp = false;
-  this->advertising_data_.include_name = this->include_name_in_adv_ || !this->scan_response_;
+  this->advertising_data_.include_name = !this->scan_response_;
   this->advertising_data_.include_txpower = !this->scan_response_;
   err = esp_ble_gap_config_adv_data(&this->advertising_data_);
   if (err != ESP_OK) {
@@ -152,7 +148,7 @@ void BLEAdvertising::loop() {
   if (now - this->last_advertisement_time_ > this->advertising_cycle_time_) {
     this->stop();
     this->current_adv_index_ += 1;
-    if (static_cast<size_t>(this->current_adv_index_) >= this->raw_advertisements_callbacks_.size()) {
+    if (this->current_adv_index_ >= this->raw_advertisements_callbacks_.size()) {
       this->current_adv_index_ = -1;
     }
     this->start();
@@ -164,7 +160,7 @@ void BLEAdvertising::register_raw_advertisement_callback(std::function<void(bool
   this->raw_advertisements_callbacks_.push_back(std::move(callback));
 }
 
-}  // namespace esphome::esp32_ble
+}  // namespace esp32_ble
+}  // namespace esphome
 
-#endif  // USE_ESP32_BLE_ADVERTISING
-#endif  // USE_ESP32
+#endif

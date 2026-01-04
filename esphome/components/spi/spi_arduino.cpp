@@ -1,8 +1,9 @@
 #include "spi.h"
 #include <vector>
 
-namespace esphome::spi {
-#if defined(USE_ARDUINO) && !defined(USE_ESP32)
+namespace esphome {
+namespace spi {
+#ifdef USE_ARDUINO
 
 static const char *const TAG = "spi-esp-arduino";
 class SPIDelegateHw : public SPIDelegate {
@@ -100,5 +101,6 @@ SPIBus *SPIComponent::get_bus(SPIInterface interface, GPIOPin *clk, GPIOPin *sdo
   return new SPIBusHw(clk, sdo, sdi, interface);
 }
 
-#endif  // USE_ARDUINO && !USE_ESP32
-}  // namespace esphome::spi
+#endif  // USE_ARDUINO
+}  // namespace spi
+}  // namespace esphome

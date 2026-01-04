@@ -125,7 +125,8 @@ writezero:
 
 def time_to_cycles(time_us):
     cycles_per_us = 57.5
-    return round(float(time_us) * cycles_per_us)
+    cycles = round(float(time_us) * cycles_per_us)
+    return cycles
 
 
 CONF_PIO = "pio"

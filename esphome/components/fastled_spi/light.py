@@ -9,7 +9,6 @@ from esphome.const import (
     CONF_DATA_RATE,
     CONF_NUM_LEDS,
     CONF_RGB_ORDER,
-    Framework,
 )
 
 AUTO_LOAD = ["fastled_base"]
@@ -34,15 +33,6 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_DATA_RATE): cv.frequency,
         }
     ),
-    cv.only_with_framework(
-        frameworks=Framework.ARDUINO,
-        suggestions={
-            Framework.ESP_IDF: (
-                "spi_led_strip",
-                "light/spi_led_strip",
-            )
-        },
-    ),
     cv.require_framework_version(
         esp8266_arduino=cv.Version(2, 7, 4),
         esp32_arduino=cv.Version(99, 0, 0),
@@ -55,7 +45,9 @@ CONFIG_SCHEMA = cv.All(
 async def to_code(config):
     var = await fastled_base.new_fastled_light(config)
 
-    rgb_order = cg.RawExpression(config.get(CONF_RGB_ORDER, "RGB"))
+    rgb_order = cg.RawExpression(
+        config[CONF_RGB_ORDER] if CONF_RGB_ORDER in config else "RGB"
+    )
     data_rate = None
 
     if CONF_DATA_RATE in config:

@@ -5,7 +5,6 @@
 #include "esphome/core/defines.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/time.h"
-#include "esphome/components/display/display.h"
 
 #include <vector>
 
@@ -19,7 +18,7 @@ class KeyListener {
 
 class TM1638Component;
 
-using tm1638_writer_t = display::DisplayWriter<TM1638Component>;
+using tm1638_writer_t = std::function<void(TM1638Component &)>;
 
 class TM1638Component : public PollingComponent {
  public:
@@ -71,7 +70,7 @@ class TM1638Component : public PollingComponent {
   GPIOPin *stb_pin_;
   GPIOPin *dio_pin_;
   uint8_t *buffer_ = new uint8_t[8];
-  tm1638_writer_t writer_{};
+  optional<tm1638_writer_t> writer_{};
   std::vector<KeyListener *> listeners_{};
 };
 

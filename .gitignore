@@ -91,10 +91,6 @@ venv-*/
 # mypy
 .mypy_cache/
 
-# nix
-/default.nix
-/shell.nix
-
 .pioenvs
 .piolibdeps
 .pio

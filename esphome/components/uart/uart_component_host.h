@@ -6,7 +6,8 @@
 #include "esphome/core/log.h"
 #include "uart_component.h"
 
-namespace esphome::uart {
+namespace esphome {
+namespace uart {
 
 class HostUartComponent : public UARTComponent, public Component {
  public:
@@ -31,5 +32,7 @@ class HostUartComponent : public UARTComponent, public Component {
   uint8_t peek_byte_;
 };
 
-}  // namespace esphome::uart
+}  // namespace uart
+}  // namespace esphome
+
 #endif  // USE_HOST

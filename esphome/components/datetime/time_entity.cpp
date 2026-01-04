@@ -1,11 +1,11 @@
 #include "time_entity.h"
-#include "esphome/core/defines.h"
-#include "esphome/core/controller_registry.h"
+
 #ifdef USE_DATETIME_TIME
 
 #include "esphome/core/log.h"
 
-namespace esphome::datetime {
+namespace esphome {
+namespace datetime {
 
 static const char *const TAG = "datetime.time_entity";
 
@@ -29,9 +29,6 @@ void TimeEntity::publish_state() {
   ESP_LOGD(TAG, "'%s': Sending time %02d:%02d:%02d", this->get_name().c_str(), this->hour_, this->minute_,
            this->second_);
   this->state_callback_.call();
-#if defined(USE_DATETIME_TIME) && defined(USE_CONTROLLER_REGISTRY)
-  ControllerRegistry::notify_time_update(this);
-#endif
 }
 
 TimeCall TimeEntity::make_call() { return TimeCall(this); }
@@ -151,6 +148,7 @@ bool OnTimeTrigger::matches_(const ESPTime &time) const {
 }
 #endif
 
-}  // namespace esphome::datetime
+}  // namespace datetime
+}  // namespace esphome
 
 #endif  // USE_DATETIME_TIME

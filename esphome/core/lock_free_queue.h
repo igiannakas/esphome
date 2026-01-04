@@ -1,11 +1,16 @@
 #pragma once
 
+#if defined(USE_ESP32) || defined(USE_LIBRETINY)
+
 #include <atomic>
 #include <cstddef>
 
-#ifdef USE_ESP32
+#if defined(USE_ESP32)
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#elif defined(USE_LIBRETINY)
+#include <FreeRTOS.h>
+#include <task.h>
 #endif
 
 /*
@@ -29,7 +34,7 @@ namespace esphome {
 // Base lock-free queue without task notification
 template<class T, uint8_t SIZE> class LockFreeQueue {
  public:
-  LockFreeQueue() : dropped_count_(0), head_(0), tail_(0) {}
+  LockFreeQueue() : head_(0), tail_(0), dropped_count_(0) {}
 
   bool push(T *element) {
     bool was_empty;
@@ -95,7 +100,7 @@ template<class T, uint8_t SIZE> class LockFreeQueue {
   }
 
  protected:
-  T *buffer_[SIZE]{};
+  T *buffer_[SIZE];
   // Atomic: written by producer (push/increment), read+reset by consumer (get_and_reset)
   std::atomic<uint16_t> dropped_count_;  // 65535 max - more than enough for drop tracking
   // Atomic: written by consumer (pop), read by producer (push) to check if full
@@ -106,7 +111,6 @@ template<class T, uint8_t SIZE> class LockFreeQueue {
   std::atomic<uint8_t> tail_;
 };
 
-#ifdef USE_ESP32
 // Extended queue with task notification support
 template<class T, uint8_t SIZE> class NotifyingLockFreeQueue : public LockFreeQueue<T, SIZE> {
  public:
@@ -141,6 +145,7 @@ template<class T, uint8_t SIZE> class NotifyingLockFreeQueue : public LockFreeQu
  private:
   TaskHandle_t task_to_notify_;
 };
-#endif
 
 }  // namespace esphome
+
+#endif  // defined(USE_ESP32) || defined(USE_LIBRETINY)

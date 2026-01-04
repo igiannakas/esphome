@@ -3,7 +3,8 @@
 #include "esphome/core/color.h"
 #include "esphome/core/helpers.h"
 
-namespace esphome::light {
+namespace esphome {
+namespace light {
 
 struct ESPHSVColor {
   union {
@@ -31,4 +32,5 @@ struct ESPHSVColor {
   Color to_rgb() const;
 };
 
-}  // namespace esphome::light
+}  // namespace light
+}  // namespace esphome

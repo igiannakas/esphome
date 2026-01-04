@@ -1,9 +1,6 @@
 #pragma once
 
-#include "esphome/core/defines.h"
-
 #ifdef USE_ESP32
-#ifdef USE_ESP32_BLE_DEVICE
 
 #include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
 
@@ -11,7 +8,8 @@
 
 #include <vector>
 
-namespace esphome::esp32_ble_client {
+namespace esphome {
+namespace esp32_ble_client {
 
 namespace espbt = esphome::esp32_ble_tracker;
 
@@ -35,7 +33,7 @@ class BLECharacteristic {
   BLEService *service;
 };
 
-}  // namespace esphome::esp32_ble_client
+}  // namespace esp32_ble_client
+}  // namespace esphome
 
-#endif  // USE_ESP32_BLE_DEVICE
 #endif  // USE_ESP32

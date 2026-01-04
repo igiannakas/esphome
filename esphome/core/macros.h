@@ -6,7 +6,3 @@
 #ifdef USE_ARDUINO
 #include <Arduino.h>
 #endif
-
-#ifdef USE_ZEPHYR
-#define M_PI 3.14159265358979323846
-#endif

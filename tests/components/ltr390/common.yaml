@@ -1,6 +1,10 @@
+i2c:
+  - id: i2c_ltr390
+    scl: ${scl_pin}
+    sda: ${sda_pin}
+
 sensor:
   - platform: ltr390
-    i2c_id: i2c_bus
     uv:
       name: LTR390 UV 1
     uv_index:
@@ -15,7 +19,6 @@ sensor:
     address: 0x53
     update_interval: 60s
   - platform: ltr390
-    i2c_id: i2c_bus
     uv:
       name: LTR390 UV 2
     uv_index:

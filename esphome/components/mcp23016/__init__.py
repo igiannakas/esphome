@@ -11,7 +11,6 @@ from esphome.const import (
     CONF_OUTPUT,
 )
 
-AUTO_LOAD = ["gpio_expander"]
 DEPENDENCIES = ["i2c"]
 MULTI_CONF = True
 

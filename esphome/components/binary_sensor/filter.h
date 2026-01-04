@@ -4,7 +4,11 @@
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
 
-namespace esphome::binary_sensor {
+#include <vector>
+
+namespace esphome {
+
+namespace binary_sensor {
 
 class BinarySensor;
 
@@ -78,6 +82,11 @@ class InvertFilter : public Filter {
 };
 
 struct AutorepeatFilterTiming {
+  AutorepeatFilterTiming(uint32_t delay, uint32_t off, uint32_t on) {
+    this->delay = delay;
+    this->time_off = off;
+    this->time_on = on;
+  }
   uint32_t delay;
   uint32_t time_off;
   uint32_t time_on;
@@ -85,7 +94,7 @@ struct AutorepeatFilterTiming {
 
 class AutorepeatFilter : public Filter, public Component {
  public:
-  explicit AutorepeatFilter(std::initializer_list<AutorepeatFilterTiming> timings);
+  explicit AutorepeatFilter(std::vector<AutorepeatFilterTiming> timings);
 
   optional<bool> new_value(bool value) override;
 
@@ -95,7 +104,7 @@ class AutorepeatFilter : public Filter, public Component {
   void next_timing_();
   void next_value_(bool val);
 
-  FixedVector<AutorepeatFilterTiming> timings_;
+  std::vector<AutorepeatFilterTiming> timings_;
   uint8_t active_timing_{0};
 };
 
@@ -107,21 +116,6 @@ class LambdaFilter : public Filter {
 
  protected:
   std::function<optional<bool>(bool)> f_;
-};
-
-/** Optimized lambda filter for stateless lambdas (no capture).
- *
- * Uses function pointer instead of std::function to reduce memory overhead.
- * Memory: 4 bytes (function pointer on 32-bit) vs 32 bytes (std::function).
- */
-class StatelessLambdaFilter : public Filter {
- public:
-  explicit StatelessLambdaFilter(optional<bool> (*f)(bool)) : f_(f) {}
-
-  optional<bool> new_value(bool value) override { return this->f_(value); }
-
- protected:
-  optional<bool> (*f_)(bool);
 };
 
 class SettleFilter : public Filter, public Component {
@@ -137,4 +131,6 @@ class SettleFilter : public Filter, public Component {
   bool steady_{true};
 };
 
-}  // namespace esphome::binary_sensor
+}  // namespace binary_sensor
+
+}  // namespace esphome

@@ -66,7 +66,8 @@ async def style_update_to_code(config, action_id, template_arg, args):
     async with LambdaContext(parameters=args, where=action_id) as context:
         await style_set(style, config)
 
-    return cg.new_Pvariable(action_id, template_arg, await context.get_lambda())
+    var = cg.new_Pvariable(action_id, template_arg, await context.get_lambda())
+    return var
 
 
 async def theme_to_code(config):
@@ -75,7 +76,6 @@ async def theme_to_code(config):
         for w_name, style in theme.items():
             # Work around Python 3.10 bug with nested async comprehensions
             # With Python 3.11 this could be simplified
-            # TODO: Now that we require Python 3.11+, this can be updated to use nested comprehensions
             styles = {}
             for part, states in collect_parts(style).items():
                 styles[part] = {

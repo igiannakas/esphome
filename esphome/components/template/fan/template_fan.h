@@ -1,11 +1,14 @@
 #pragma once
 
+#include <set>
+
 #include "esphome/core/component.h"
 #include "esphome/components/fan/fan.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
-class TemplateFan final : public Component, public fan::Fan {
+class TemplateFan : public Component, public fan::Fan {
  public:
   TemplateFan() {}
   void setup() override;
@@ -13,7 +16,7 @@ class TemplateFan final : public Component, public fan::Fan {
   void set_has_direction(bool has_direction) { this->has_direction_ = has_direction; }
   void set_has_oscillating(bool has_oscillating) { this->has_oscillating_ = has_oscillating; }
   void set_speed_count(int count) { this->speed_count_ = count; }
-  void set_preset_modes(std::initializer_list<const char *> presets) { this->preset_modes_ = presets; }
+  void set_preset_modes(const std::set<std::string> &presets) { this->preset_modes_ = presets; }
   fan::FanTraits get_traits() override { return this->traits_; }
 
  protected:
@@ -23,7 +26,8 @@ class TemplateFan final : public Component, public fan::Fan {
   bool has_direction_{false};
   int speed_count_{0};
   fan::FanTraits traits_;
-  std::vector<const char *> preset_modes_{};
+  std::set<std::string> preset_modes_{};
 };
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome

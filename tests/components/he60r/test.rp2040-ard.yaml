@@ -1,4 +1,5 @@
-packages:
-  uart_1200_even: !include ../../test_build_components/common/uart_1200_even/rp2040-ard.yaml
+substitutions:
+  tx_pin: GPIO4
+  rx_pin: GPIO5
 
 <<: !include common.yaml

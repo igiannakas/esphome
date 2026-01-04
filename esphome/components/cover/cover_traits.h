@@ -1,6 +1,7 @@
 #pragma once
 
-namespace esphome::cover {
+namespace esphome {
+namespace cover {
 
 class CoverTraits {
  public:
@@ -25,4 +26,5 @@ class CoverTraits {
   bool supports_stop_{false};
 };
 
-}  // namespace esphome::cover
+}  // namespace cover
+}  // namespace esphome

@@ -74,7 +74,8 @@ def range_segment_list(input):
     if isinstance(input, list):
         for list_item in input:
             if isinstance(list_item, list):
-                flat_list.extend(list_item)
+                for item in list_item:
+                    flat_list.append(item)
             else:
                 flat_list.append(list_item)
     else:

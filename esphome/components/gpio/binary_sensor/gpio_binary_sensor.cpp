@@ -6,25 +6,6 @@ namespace gpio {
 
 static const char *const TAG = "gpio.binary_sensor";
 
-#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_DEBUG
-static const LogString *interrupt_type_to_string(gpio::InterruptType type) {
-  switch (type) {
-    case gpio::INTERRUPT_RISING_EDGE:
-      return LOG_STR("RISING_EDGE");
-    case gpio::INTERRUPT_FALLING_EDGE:
-      return LOG_STR("FALLING_EDGE");
-    case gpio::INTERRUPT_ANY_EDGE:
-      return LOG_STR("ANY_EDGE");
-    default:
-      return LOG_STR("UNKNOWN");
-  }
-}
-
-static const LogString *gpio_mode_to_string(bool use_interrupt) {
-  return use_interrupt ? LOG_STR("interrupt") : LOG_STR("polling");
-}
-#endif
-
 void IRAM_ATTR GPIOBinarySensorStore::gpio_intr(GPIOBinarySensorStore *arg) {
   bool new_state = arg->isr_pin_.digital_read();
   if (new_state != arg->last_state_) {
@@ -70,9 +51,25 @@ void GPIOBinarySensor::setup() {
 void GPIOBinarySensor::dump_config() {
   LOG_BINARY_SENSOR("", "GPIO Binary Sensor", this);
   LOG_PIN("  Pin: ", this->pin_);
-  ESP_LOGCONFIG(TAG, "  Mode: %s", LOG_STR_ARG(gpio_mode_to_string(this->use_interrupt_)));
+  const char *mode = this->use_interrupt_ ? "interrupt" : "polling";
+  ESP_LOGCONFIG(TAG, "  Mode: %s", mode);
   if (this->use_interrupt_) {
-    ESP_LOGCONFIG(TAG, "  Interrupt Type: %s", LOG_STR_ARG(interrupt_type_to_string(this->interrupt_type_)));
+    const char *interrupt_type;
+    switch (this->interrupt_type_) {
+      case gpio::INTERRUPT_RISING_EDGE:
+        interrupt_type = "RISING_EDGE";
+        break;
+      case gpio::INTERRUPT_FALLING_EDGE:
+        interrupt_type = "FALLING_EDGE";
+        break;
+      case gpio::INTERRUPT_ANY_EDGE:
+        interrupt_type = "ANY_EDGE";
+        break;
+      default:
+        interrupt_type = "UNKNOWN";
+        break;
+    }
+    ESP_LOGCONFIG(TAG, "  Interrupt Type: %s", interrupt_type);
   }
 }
 

@@ -25,6 +25,7 @@ inline const char *to_string(SHTCXType type) {
 }
 
 void SHTCXComponent::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
   this->wake_up();
   this->soft_reset();
 

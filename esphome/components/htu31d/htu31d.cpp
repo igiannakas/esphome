@@ -75,6 +75,8 @@ uint8_t compute_crc(uint32_t value) {
  * I2C.
  */
 void HTU31DComponent::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
+
   if (!this->reset_()) {
     this->mark_failed();
     return;

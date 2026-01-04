@@ -1,21 +1,19 @@
 #pragma once
 
-#ifdef USE_ESP32
+#ifdef USE_ESP_IDF
 
 #include <driver/uart.h>
 #include "esphome/core/component.h"
 #include "uart_component.h"
 
-namespace esphome::uart {
+namespace esphome {
+namespace uart {
 
 class IDFUARTComponent : public UARTComponent, public Component {
  public:
   void setup() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::BUS; }
-
-  void set_rx_full_threshold(size_t rx_full_threshold) override;
-  void set_rx_timeout(size_t rx_timeout) override;
 
   void write_array(const uint8_t *data, size_t len) override;
 
@@ -52,15 +50,9 @@ class IDFUARTComponent : public UARTComponent, public Component {
 
   bool has_peek_{false};
   uint8_t peek_byte_;
-
-#ifdef USE_UART_WAKE_LOOP_ON_RX
-  // RX notification support
-  void start_rx_event_task_();
-  static void rx_event_task_func(void *param);
-
-  TaskHandle_t rx_event_task_handle_{nullptr};
-#endif  // USE_UART_WAKE_LOOP_ON_RX
 };
 
-}  // namespace esphome::uart
-#endif  // USE_ESP32
+}  // namespace uart
+}  // namespace esphome
+
+#endif  // USE_ESP_IDF

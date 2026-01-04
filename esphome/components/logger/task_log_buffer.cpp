@@ -5,7 +5,8 @@
 
 #ifdef USE_ESPHOME_TASK_LOG_BUFFER
 
-namespace esphome::logger {
+namespace esphome {
+namespace logger {
 
 TaskLogBuffer::TaskLogBuffer(size_t total_buffer_size) {
   // Store the buffer size
@@ -131,6 +132,7 @@ bool TaskLogBuffer::send_message_thread_safe(uint8_t level, const char *tag, uin
   return true;
 }
 
-}  // namespace esphome::logger
+}  // namespace logger
+}  // namespace esphome
 
 #endif  // USE_ESPHOME_TASK_LOG_BUFFER

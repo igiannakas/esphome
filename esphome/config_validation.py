@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from ipaddress import (
@@ -16,16 +15,16 @@ from ipaddress import (
     ip_network,
 )
 import logging
-from pathlib import Path
+import os
 import re
 from string import ascii_letters, digits
-import typing
 import uuid as uuid_
 
 import voluptuous as vol
 
 from esphome import core
 import esphome.codegen as cg
+from esphome.config_helpers import Extend, Remove
 from esphome.const import (
     ALLOWED_NAME_CHARS,
     CONF_AVAILABILITY,
@@ -71,11 +70,9 @@ from esphome.const import (
     PLATFORM_ESP32,
     PLATFORM_ESP8266,
     PLATFORM_RP2040,
-    SCHEDULER_DONT_RUN,
     TYPE_GIT,
     TYPE_LOCAL,
     VALID_SUBSTITUTIONS_CHARACTERS,
-    Framework,
     __version__ as ESPHOME_VERSION,
 )
 from esphome.core import (
@@ -89,7 +86,7 @@ from esphome.core import (
     TimePeriodNanoseconds,
     TimePeriodSeconds,
 )
-from esphome.helpers import add_class_to_obj, docs_url, list_starts_with
+from esphome.helpers import add_class_to_obj, list_starts_with
 from esphome.schema_extractors import (
     SCHEMA_EXTRACT,
     schema_extractor,
@@ -246,20 +243,6 @@ RESERVED_IDS = [
     "uart0",
     "uart1",
     "uart2",
-    # ESP32 ROM functions
-    "crc16_be",
-    "crc16_le",
-    "crc32_be",
-    "crc32_le",
-    "crc8_be",
-    "crc8_le",
-    "dbg_state",
-    "debug_timer",
-    "one_bits",
-    "recv_packet",
-    "send_packet",
-    "check_pos",
-    "software_reset",
 ]
 
 
@@ -297,40 +280,6 @@ class Required(vol.Required):
 
 class FinalExternalInvalid(Invalid):
     """Represents an invalid value in the final validation phase where the path should not be prepended."""
-
-
-@dataclass(frozen=True, order=True)
-class Version:
-    major: int
-    minor: int
-    patch: int
-    extra: str = ""
-
-    def __str__(self):
-        if self.extra:
-            return f"{self.major}.{self.minor}.{self.patch}-{self.extra}"
-        return f"{self.major}.{self.minor}.{self.patch}"
-
-    @classmethod
-    def parse(cls, value: str) -> Version:
-        match = re.match(r"^(\d+).(\d+).(\d+)-?(\w*)$", value)
-        if match is None:
-            raise ValueError(f"Not a valid version number {value}")
-        major = int(match[1])
-        minor = int(match[2])
-        patch = int(match[3])
-        extra = match[4] or ""
-        return Version(major=major, minor=minor, patch=patch, extra=extra)
-
-    @property
-    def is_beta(self) -> bool:
-        """Check if this version is a beta version."""
-        return self.extra.startswith("b")
-
-    @property
-    def is_dev(self) -> bool:
-        """Check if this version is a development version."""
-        return self.extra.startswith("dev")
 
 
 def check_not_templatable(value):
@@ -409,12 +358,9 @@ def icon(value):
     )
 
 
-def sub_device_id(value: str | None) -> core.ID | None:
+def sub_device_id(value: str | None) -> core.ID:
     # Lazy import to avoid circular imports
     from esphome.core.config import Device
-
-    if not value:
-        return None
 
     return use_id(Device)(value)
 
@@ -626,6 +572,12 @@ def declare_id(type):
         if value is None:
             return core.ID(None, is_declaration=True, type=type)
 
+        if isinstance(value, Extend):
+            raise Invalid(f"Source for extension of ID '{value.value}' was not found.")
+
+        if isinstance(value, Remove):
+            raise Invalid(f"Source for Removal of ID '{value.value}' was not found.")
+
         return core.ID(validate_id_name(value), is_declaration=True, type=type)
 
     return validator
@@ -667,27 +619,16 @@ def only_on(platforms):
     return validator_
 
 
-def only_with_framework(
-    frameworks: Framework | str | list[Framework | str], suggestions=None
-):
+def only_with_framework(frameworks):
     """Validate that this option can only be specified on the given frameworks."""
     if not isinstance(frameworks, list):
         frameworks = [frameworks]
 
-    frameworks = [Framework(framework) for framework in frameworks]
-
-    if suggestions is None:
-        suggestions = {}
-
     def validator_(obj):
         if CORE.target_framework not in frameworks:
-            err_str = f"This feature is only available with framework(s) {', '.join([framework.value for framework in frameworks])}"
-            if suggestion := suggestions.get(CORE.target_framework, None):
-                (component, docs_path) = suggestion
-                err_str += f"\nPlease use '{component}'"
-                if docs_path:
-                    err_str += f": {docs_url(path=f'components/{docs_path}')}"
-            raise Invalid(err_str)
+            raise Invalid(
+                f"This feature is only available with frameworks {frameworks}"
+            )
         return obj
 
     return validator_
@@ -696,17 +637,8 @@ def only_with_framework(
 only_on_esp32 = only_on(PLATFORM_ESP32)
 only_on_esp8266 = only_on(PLATFORM_ESP8266)
 only_on_rp2040 = only_on(PLATFORM_RP2040)
-only_with_arduino = only_with_framework(Framework.ARDUINO)
-
-
-def only_with_esp_idf(obj):
-    """Deprecated: use only_on_esp32 instead."""
-    _LOGGER.warning(
-        "cv.only_with_esp_idf was deprecated in 2026.1, will change behavior in 2026.6. "
-        "ESP32 Arduino builds on top of ESP-IDF, so ESP-IDF features are available in both frameworks. "
-        "Use cv.only_on_esp32 and/or cv.only_with_arduino instead."
-    )
-    return only_with_framework(Framework.ESP_IDF)(obj)
+only_with_arduino = only_with_framework("arduino")
+only_with_esp_idf = only_with_framework("esp-idf")
 
 
 # Adapted from:
@@ -750,10 +682,9 @@ def has_at_most_one_key(*keys):
         if not isinstance(obj, dict):
             raise Invalid("expected dictionary")
 
-        used = set(obj) & set(keys)
-        if len(used) > 1:
-            msg = "Cannot specify more than one of '" + "', '".join(used) + "'."
-            raise MultipleInvalid([Invalid(msg, path=[k]) for k in used])
+        number = sum(k in keys for k in obj)
+        if number > 1:
+            raise Invalid(f"Cannot specify more than one of {', '.join(keys)}.")
         return obj
 
     return validate
@@ -904,7 +835,7 @@ def time_period_in_minutes_(value):
 
 def update_interval(value):
     if value == "never":
-        return TimePeriodMilliseconds(milliseconds=SCHEDULER_DONT_RUN)
+        return 4294967295  # uint32_t max
     return positive_time_period_milliseconds(value)
 
 
@@ -1132,8 +1063,8 @@ voltage = float_with_unit("voltage", "(v|V|volt|Volts)?")
 distance = float_with_unit("distance", "(m)")
 framerate = float_with_unit("framerate", "(FPS|fps|Fps|FpS|Hz)")
 angle = float_with_unit("angle", "(°|deg)", optional_unit=True)
-_temperature_c = float_with_unit("temperature", "(°C|° C|C|°)?")
-_temperature_k = float_with_unit("temperature", "(°K|° K|K)?")
+_temperature_c = float_with_unit("temperature", "(°C|° C|°|C)?")
+_temperature_k = float_with_unit("temperature", "(° K|° K|K)?")
 _temperature_f = float_with_unit("temperature", "(°F|° F|F)?")
 decibel = float_with_unit("decibel", "(dB|dBm|db|dbm)", optional_unit=True)
 pressure = float_with_unit("pressure", "(bar|Bar)", optional_unit=True)
@@ -1215,13 +1146,6 @@ def validate_bytes(value):
 
 
 def hostname(value):
-    """Validate that the value is a valid hostname.
-
-    Maximum length is 63 characters per RFC 1035.
-
-    Note: If this limit is changed, update MAX_NAME_WITH_SUFFIX_SIZE in
-    esphome/core/helpers.cpp to accommodate the new maximum length.
-    """
     value = string(value)
     if re.match(r"^[a-z0-9-]{1,63}$", value, re.IGNORECASE) is not None:
         return value
@@ -1636,32 +1560,34 @@ def dimensions(value):
     return dimensions([match.group(1), match.group(2)])
 
 
-def directory(value: object) -> Path:
+def directory(value):
     value = string(value)
     path = CORE.relative_config_path(value)
 
-    if not path.exists():
+    if not os.path.exists(path):
         raise Invalid(
-            f"Could not find directory '{path}'. Please make sure it exists (full path: {path.resolve()})."
+            f"Could not find directory '{path}'. Please make sure it exists (full path: {os.path.abspath(path)})."
         )
-    if not path.is_dir():
+    if not os.path.isdir(path):
         raise Invalid(
-            f"Path '{path}' is not a directory (full path: {path.resolve()})."
+            f"Path '{path}' is not a directory (full path: {os.path.abspath(path)})."
         )
-    return path
+    return value
 
 
-def file_(value: object) -> Path:
+def file_(value):
     value = string(value)
     path = CORE.relative_config_path(value)
 
-    if not path.exists():
+    if not os.path.exists(path):
         raise Invalid(
-            f"Could not find file '{path}'. Please make sure it exists (full path: {path.resolve()})."
+            f"Could not find file '{path}'. Please make sure it exists (full path: {os.path.abspath(path)})."
         )
-    if not path.is_file():
-        raise Invalid(f"Path '{path}' is not a file (full path: {path.resolve()}).")
-    return path
+    if not os.path.isfile(path):
+        raise Invalid(
+            f"Path '{path}' is not a file (full path: {os.path.abspath(path)})."
+        )
+    return value
 
 
 ENTITY_ID_CHARACTERS = "abcdefghijklmnopqrstuvwxyz0123456789_"
@@ -1754,7 +1680,8 @@ class SplitDefault(Optional):
     def default(self):
         keys = []
         if CORE.is_esp32:
-            from esphome.components.esp32 import VARIANT_ESP32, get_esp32_variant
+            from esphome.components.esp32 import get_esp32_variant
+            from esphome.components.esp32.const import VARIANT_ESP32
 
             variant = get_esp32_variant().replace(VARIANT_ESP32, "").lower()
             framework = CORE.target_framework.replace("esp-", "")
@@ -1775,37 +1702,16 @@ class SplitDefault(Optional):
 
 
 class OnlyWith(Optional):
-    """Set the default value only if the given component(s) is/are loaded.
+    """Set the default value only if the given component is loaded."""
 
-    This validator allows configuration keys to have defaults that are only applied
-    when specific component(s) are loaded. Supports both single component names and
-    lists of components.
-
-    Args:
-        key: Configuration key
-        component: Single component name (str) or list of component names.
-                  For lists, ALL components must be loaded for the default to apply.
-        default: Default value to use when condition is met
-
-    Example:
-        # Single component
-        cv.OnlyWith(CONF_MQTT_ID, "mqtt"): cv.declare_id(MQTTComponent)
-
-        # Multiple components (all must be loaded)
-        cv.OnlyWith(CONF_ZIGBEE_ID, ["zigbee", "nrf52"]): cv.use_id(Zigbee)
-    """
-
-    def __init__(self, key, component: str | list[str], default=None) -> None:
+    def __init__(self, key, component, default=None):
         super().__init__(key)
         self._component = component
         self._default = vol.default_factory(default)
 
     @property
-    def default(self) -> Callable[[], typing.Any] | vol.Undefined:
-        if isinstance(self._component, list):
-            if all(c in CORE.loaded_integrations for c in self._component):
-                return self._default
-        elif self._component in CORE.loaded_integrations:
+    def default(self):
+        if self._component in CORE.loaded_integrations:
             return self._default
         return vol.UNDEFINED
 
@@ -1908,7 +1814,7 @@ def validate_registry_entry(name, registry):
 
 def none(value):
     if value in ("none", "None"):
-        return
+        return None
     raise Invalid("Must be none")
 
 
@@ -1981,26 +1887,6 @@ MQTT_COMMAND_COMPONENT_SCHEMA = MQTT_COMPONENT_SCHEMA.extend(
 )
 
 
-def _validate_no_slash(value):
-    """Validate that a name does not contain '/' characters.
-
-    The '/' character is used as a path separator in web server URLs,
-    so it cannot be used in entity or device names.
-    """
-    if "/" in value:
-        raise Invalid(
-            f"Name cannot contain '/' character (used as URL path separator): {value}"
-        )
-    return value
-
-
-# Maximum length for entity, device, and area names
-# This ensures web server URL IDs fit in a 280-byte buffer:
-# domain(20) + "/" + device(120) + "/" + name(120) + null = 263 bytes
-# Note: Must be < 255 because web_server UrlMatch uses uint8_t for length fields
-NAME_MAX_LENGTH = 120
-
-
 def _validate_entity_name(value):
     value = string(value)
     try:
@@ -2011,26 +1897,7 @@ def _validate_entity_name(value):
         requires_friendly_name(
             "Name cannot be None when esphome->friendly_name is not set!"
         )(value)
-    if value is not None:
-        # Validate length for web server URL compatibility
-        if len(value) > NAME_MAX_LENGTH:
-            raise Invalid(
-                f"Name is too long ({len(value)} chars). "
-                f"Maximum length is {NAME_MAX_LENGTH} characters."
-            )
-        # Validate no '/' in name for web server URL compatibility
-        _validate_no_slash(value)
     return value
-
-
-def string_no_slash(value):
-    """Validate a string that cannot contain '/' characters.
-
-    Used for device and area names where '/' is reserved as a URL path separator.
-    Use with cv.Length() to also enforce maximum length.
-    """
-    value = string(value)
-    return _validate_no_slash(value)
 
 
 ENTITY_BASE_SCHEMA = Schema(
@@ -2058,7 +1925,7 @@ def polling_component_schema(default_update_interval):
     if default_update_interval is None:
         return COMPONENT_SCHEMA.extend(
             {
-                Required(CONF_UPDATE_INTERVAL): update_interval,
+                Required(CONF_UPDATE_INTERVAL): default_update_interval,
             }
         )
     assert isinstance(default_update_interval, str)
@@ -2097,6 +1964,26 @@ def source_refresh(value: str):
     if value.lower() == "never":
         return source_refresh("365250d")
     return positive_time_period_seconds(value)
+
+
+@dataclass(frozen=True, order=True)
+class Version:
+    major: int
+    minor: int
+    patch: int
+
+    def __str__(self):
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+    @classmethod
+    def parse(cls, value: str) -> Version:
+        match = re.match(r"^(\d+).(\d+).(\d+)-?\w*$", value)
+        if match is None:
+            raise ValueError(f"Not a valid version number {value}")
+        major = int(match[1])
+        minor = int(match[2])
+        patch = int(match[3])
+        return Version(major=major, minor=minor, patch=patch)
 
 
 def version_number(value):
@@ -2194,8 +2081,10 @@ def require_esphome_version(year, month, patch):
 
 @contextmanager
 def suppress_invalid():
-    with suppress(vol.Invalid):
+    try:
         yield
+    except vol.Invalid:
+        pass
 
 
 GIT_SCHEMA = Schema(
@@ -2264,6 +2153,29 @@ def rename_key(old_key, new_key):
         config = config.copy()
         if old_key in config:
             config[new_key] = config.pop(old_key)
+        return config
+
+    return validator
+
+
+# Remove before 2025.11.0
+def deprecated_schema_constant(entity_type: str):
+    def validator(config):
+        type: str = "unknown"
+        if (id := config.get(CONF_ID)) is not None and isinstance(id, core.ID):
+            type = str(id.type).split("::", maxsplit=1)[0]
+        _LOGGER.warning(
+            "Using `%s.%s_SCHEMA` is deprecated and will be removed in ESPHome 2025.11.0. "
+            "Please use `%s.%s_schema(...)` instead. "
+            "If you are seeing this, report an issue to the external_component author and ask them to update it. "
+            "https://developers.esphome.io/blog/2025/05/14/_schema-deprecations/. "
+            "Component using this schema: %s",
+            entity_type,
+            entity_type.upper(),
+            entity_type,
+            entity_type,
+            type,
+        )
         return config
 
     return validator

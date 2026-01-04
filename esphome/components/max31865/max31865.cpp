@@ -65,6 +65,7 @@ void MAX31865Sensor::update() {
 }
 
 void MAX31865Sensor::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup for '%s'", this->name_.c_str());
   this->spi_setup();
 
   // Build base configuration

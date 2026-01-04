@@ -7,7 +7,8 @@
 #include "esphome/components/web_server_base/web_server_base.h"
 #include "esphome/core/component.h"
 
-namespace esphome::web_server {
+namespace esphome {
+namespace web_server {
 
 class WebServerOTAComponent : public ota::OTAComponent {
  public:
@@ -19,6 +20,7 @@ class WebServerOTAComponent : public ota::OTAComponent {
   friend class OTARequestHandler;
 };
 
-}  // namespace esphome::web_server
+}  // namespace web_server
+}  // namespace esphome
 
 #endif  // USE_WEBSERVER_OTA

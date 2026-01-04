@@ -1,25 +1,23 @@
 #include "template_binary_sensor.h"
 #include "esphome/core/log.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
 static const char *const TAG = "template.binary_sensor";
 
-void TemplateBinarySensor::setup() {
-  if (!this->f_.has_value()) {
-    this->disable_loop();
-  } else {
-    this->loop();
-  }
-}
+void TemplateBinarySensor::setup() { this->loop(); }
 
 void TemplateBinarySensor::loop() {
+  if (this->f_ == nullptr)
+    return;
+
   auto s = this->f_();
   if (s.has_value()) {
     this->publish_state(*s);
   }
 }
-
 void TemplateBinarySensor::dump_config() { LOG_BINARY_SENSOR("", "Template Binary Sensor", this); }
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome

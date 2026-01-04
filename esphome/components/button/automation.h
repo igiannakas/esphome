@@ -4,13 +4,14 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 
-namespace esphome::button {
+namespace esphome {
+namespace button {
 
 template<typename... Ts> class PressAction : public Action<Ts...> {
  public:
   explicit PressAction(Button *button) : button_(button) {}
 
-  void play(const Ts &...x) override { this->button_->press(); }
+  void play(Ts... x) override { this->button_->press(); }
 
  protected:
   Button *button_;
@@ -23,4 +24,5 @@ class ButtonPressTrigger : public Trigger<> {
   }
 };
 
-}  // namespace esphome::button
+}  // namespace button
+}  // namespace esphome

@@ -4,7 +4,8 @@
 #ifdef USE_API
 #include "esphome/core/component.h"
 #include "esphome/core/component_iterator.h"
-namespace esphome::api {
+namespace esphome {
+namespace api {
 
 class APIConnection;
 
@@ -43,7 +44,7 @@ class ListEntitiesIterator : public ComponentIterator {
 #ifdef USE_TEXT_SENSOR
   bool on_text_sensor(text_sensor::TextSensor *entity) override;
 #endif
-#ifdef USE_API_USER_DEFINED_ACTIONS
+#ifdef USE_API_SERVICES
   bool on_service(UserServiceDescriptor *service) override;
 #endif
 #ifdef USE_CAMERA
@@ -82,9 +83,6 @@ class ListEntitiesIterator : public ComponentIterator {
 #ifdef USE_ALARM_CONTROL_PANEL
   bool on_alarm_control_panel(alarm_control_panel::AlarmControlPanel *entity) override;
 #endif
-#ifdef USE_WATER_HEATER
-  bool on_water_heater(water_heater::WaterHeater *entity) override;
-#endif
 #ifdef USE_EVENT
   bool on_event(event::Event *entity) override;
 #endif
@@ -98,5 +96,6 @@ class ListEntitiesIterator : public ComponentIterator {
   APIConnection *client_;
 };
 
-}  // namespace esphome::api
+}  // namespace api
+}  // namespace esphome
 #endif

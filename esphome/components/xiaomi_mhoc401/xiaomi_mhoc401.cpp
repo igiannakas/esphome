@@ -1,5 +1,4 @@
 #include "xiaomi_mhoc401.h"
-#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 #ifdef USE_ESP32
@@ -9,14 +8,11 @@ namespace xiaomi_mhoc401 {
 
 static const char *const TAG = "xiaomi_mhoc401";
 
-static constexpr size_t MHOC401_BINDKEY_SIZE = 16;
-
 void XiaomiMHOC401::dump_config() {
-  char bindkey_hex[format_hex_pretty_size(MHOC401_BINDKEY_SIZE)];
   ESP_LOGCONFIG(TAG,
                 "Xiaomi MHOC401\n"
                 "  Bindkey: %s",
-                format_hex_pretty_to(bindkey_hex, this->bindkey_, MHOC401_BINDKEY_SIZE, '.'));
+                format_hex_pretty(this->bindkey_, 16).c_str());
   LOG_SENSOR("  ", "Temperature", this->temperature_);
   LOG_SENSOR("  ", "Humidity", this->humidity_);
   LOG_SENSOR("  ", "Battery Level", this->battery_level_);

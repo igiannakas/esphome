@@ -1,6 +1,7 @@
 #include "climate_mode.h"
 
-namespace esphome::climate {
+namespace esphome {
+namespace climate {
 
 const LogString *climate_mode_to_string(ClimateMode mode) {
   switch (mode) {
@@ -106,4 +107,5 @@ const LogString *climate_preset_to_string(ClimatePreset preset) {
   }
 }
 
-}  // namespace esphome::climate
+}  // namespace climate
+}  // namespace esphome

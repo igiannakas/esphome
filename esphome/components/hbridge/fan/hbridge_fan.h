@@ -1,5 +1,7 @@
 #pragma once
 
+#include <set>
+
 #include "esphome/core/automation.h"
 #include "esphome/components/output/binary_output.h"
 #include "esphome/components/output/float_output.h"
@@ -20,7 +22,7 @@ class HBridgeFan : public Component, public fan::Fan {
   void set_pin_a(output::FloatOutput *pin_a) { pin_a_ = pin_a; }
   void set_pin_b(output::FloatOutput *pin_b) { pin_b_ = pin_b; }
   void set_enable_pin(output::FloatOutput *enable) { enable_ = enable; }
-  void set_preset_modes(std::initializer_list<const char *> presets) { preset_modes_ = presets; }
+  void set_preset_modes(const std::set<std::string> &presets) { preset_modes_ = presets; }
 
   void setup() override;
   void dump_config() override;
@@ -36,7 +38,7 @@ class HBridgeFan : public Component, public fan::Fan {
   int speed_count_{};
   DecayMode decay_mode_{DECAY_MODE_SLOW};
   fan::FanTraits traits_;
-  std::vector<const char *> preset_modes_{};
+  std::set<std::string> preset_modes_{};
 
   void control(const fan::FanCall &call) override;
   void write_state_();
@@ -49,7 +51,7 @@ template<typename... Ts> class BrakeAction : public Action<Ts...> {
  public:
   explicit BrakeAction(HBridgeFan *parent) : parent_(parent) {}
 
-  void play(const Ts &...x) override { this->parent_->brake(); }
+  void play(Ts... x) override { this->parent_->brake(); }
 
   HBridgeFan *parent_;
 };

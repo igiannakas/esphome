@@ -4,7 +4,8 @@
 
 #include "esphome/core/log.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
 static const char *const TAG = "template.datetime";
 
@@ -18,8 +19,8 @@ void TemplateDateTime::setup() {
     state = this->initial_value_;
   } else {
     datetime::DateTimeEntityRestoreState temp;
-    this->pref_ = global_preferences->make_preference<datetime::DateTimeEntityRestoreState>(
-        194434090U ^ this->get_preference_hash());
+    this->pref_ = global_preferences->make_preference<datetime::DateTimeEntityRestoreState>(194434090U ^
+                                                                                            this->get_object_id_hash());
     if (this->pref_.load(&temp)) {
       temp.apply(this);
       return;
@@ -42,16 +43,17 @@ void TemplateDateTime::update() {
   if (!this->f_.has_value())
     return;
 
-  auto val = this->f_();
-  if (val.has_value()) {
-    this->year_ = val->year;
-    this->month_ = val->month;
-    this->day_ = val->day_of_month;
-    this->hour_ = val->hour;
-    this->minute_ = val->minute;
-    this->second_ = val->second;
-    this->publish_state();
-  }
+  auto val = (*this->f_)();
+  if (!val.has_value())
+    return;
+
+  this->year_ = val->year;
+  this->month_ = val->month;
+  this->day_ = val->day_of_month;
+  this->hour_ = val->hour;
+  this->minute_ = val->minute;
+  this->second_ = val->second;
+  this->publish_state();
 }
 
 void TemplateDateTime::control(const datetime::DateTimeCall &call) {
@@ -142,6 +144,7 @@ void TemplateDateTime::dump_config() {
   LOG_UPDATE_INTERVAL(this);
 }
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome
 
 #endif  // USE_DATETIME_DATETIME

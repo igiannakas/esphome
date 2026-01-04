@@ -3,7 +3,6 @@ wifi:
 
 time:
   - platform: sntp
-    id: sntp_time
 
 sensor:
   - platform: uptime

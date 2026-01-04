@@ -1,37 +1,33 @@
 #include "cover.h"
-#include "esphome/core/defines.h"
-#include "esphome/core/controller_registry.h"
-
-#include <strings.h>
-
 #include "esphome/core/log.h"
 
-namespace esphome::cover {
+namespace esphome {
+namespace cover {
 
 static const char *const TAG = "cover";
 
 const float COVER_OPEN = 1.0f;
 const float COVER_CLOSED = 0.0f;
 
-const LogString *cover_command_to_str(float pos) {
+const char *cover_command_to_str(float pos) {
   if (pos == COVER_OPEN) {
-    return LOG_STR("OPEN");
+    return "OPEN";
   } else if (pos == COVER_CLOSED) {
-    return LOG_STR("CLOSE");
+    return "CLOSE";
   } else {
-    return LOG_STR("UNKNOWN");
+    return "UNKNOWN";
   }
 }
-const LogString *cover_operation_to_str(CoverOperation op) {
+const char *cover_operation_to_str(CoverOperation op) {
   switch (op) {
     case COVER_OPERATION_IDLE:
-      return LOG_STR("IDLE");
+      return "IDLE";
     case COVER_OPERATION_OPENING:
-      return LOG_STR("OPENING");
+      return "OPENING";
     case COVER_OPERATION_CLOSING:
-      return LOG_STR("CLOSING");
+      return "CLOSING";
     default:
-      return LOG_STR("UNKNOWN");
+      return "UNKNOWN";
   }
 }
 
@@ -87,7 +83,7 @@ void CoverCall::perform() {
     if (traits.get_supports_position()) {
       ESP_LOGD(TAG, "  Position: %.0f%%", *this->position_ * 100.0f);
     } else {
-      ESP_LOGD(TAG, "  Command: %s", LOG_STR_ARG(cover_command_to_str(*this->position_)));
+      ESP_LOGD(TAG, "  Command: %s", cover_command_to_str(*this->position_));
     }
   }
   if (this->tilt_.has_value()) {
@@ -103,39 +99,43 @@ const optional<float> &CoverCall::get_tilt() const { return this->tilt_; }
 const optional<bool> &CoverCall::get_toggle() const { return this->toggle_; }
 void CoverCall::validate_() {
   auto traits = this->parent_->get_traits();
-  const char *name = this->parent_->get_name().c_str();
-
   if (this->position_.has_value()) {
     auto pos = *this->position_;
     if (!traits.get_supports_position() && pos != COVER_OPEN && pos != COVER_CLOSED) {
-      ESP_LOGW(TAG, "'%s': position unsupported", name);
+      ESP_LOGW(TAG, "'%s' - This cover device does not support setting position!", this->parent_->get_name().c_str());
       this->position_.reset();
     } else if (pos < 0.0f || pos > 1.0f) {
-      ESP_LOGW(TAG, "'%s': position %.2f out of range", name, pos);
+      ESP_LOGW(TAG, "'%s' - Position %.2f is out of range [0.0 - 1.0]", this->parent_->get_name().c_str(), pos);
       this->position_ = clamp(pos, 0.0f, 1.0f);
     }
   }
   if (this->tilt_.has_value()) {
     auto tilt = *this->tilt_;
     if (!traits.get_supports_tilt()) {
-      ESP_LOGW(TAG, "'%s': tilt unsupported", name);
+      ESP_LOGW(TAG, "'%s' - This cover device does not support tilt!", this->parent_->get_name().c_str());
       this->tilt_.reset();
     } else if (tilt < 0.0f || tilt > 1.0f) {
-      ESP_LOGW(TAG, "'%s': tilt %.2f out of range", name, tilt);
+      ESP_LOGW(TAG, "'%s' - Tilt %.2f is out of range [0.0 - 1.0]", this->parent_->get_name().c_str(), tilt);
       this->tilt_ = clamp(tilt, 0.0f, 1.0f);
     }
   }
   if (this->toggle_.has_value()) {
     if (!traits.get_supports_toggle()) {
-      ESP_LOGW(TAG, "'%s': toggle unsupported", name);
+      ESP_LOGW(TAG, "'%s' - This cover device does not support toggle!", this->parent_->get_name().c_str());
       this->toggle_.reset();
     }
   }
   if (this->stop_) {
-    if (this->position_.has_value() || this->tilt_.has_value() || this->toggle_.has_value()) {
-      ESP_LOGW(TAG, "'%s': cannot position/tilt/toggle when stopping", name);
+    if (this->position_.has_value()) {
+      ESP_LOGW(TAG, "Cannot set position when stopping a cover!");
       this->position_.reset();
+    }
+    if (this->tilt_.has_value()) {
+      ESP_LOGW(TAG, "Cannot set tilt when stopping a cover!");
       this->tilt_.reset();
+    }
+    if (this->toggle_.has_value()) {
+      ESP_LOGW(TAG, "Cannot set toggle when stopping a cover!");
       this->toggle_.reset();
     }
   }
@@ -147,7 +147,21 @@ CoverCall &CoverCall::set_stop(bool stop) {
 bool CoverCall::get_stop() const { return this->stop_; }
 
 CoverCall Cover::make_call() { return {this}; }
-
+void Cover::open() {
+  auto call = this->make_call();
+  call.set_command_open();
+  call.perform();
+}
+void Cover::close() {
+  auto call = this->make_call();
+  call.set_command_close();
+  call.perform();
+}
+void Cover::stop() {
+  auto call = this->make_call();
+  call.set_command_stop();
+  call.perform();
+}
 void Cover::add_on_state_callback(std::function<void()> &&f) { this->state_callback_.add(std::move(f)); }
 void Cover::publish_state(bool save) {
   this->position = clamp(this->position, 0.0f, 1.0f);
@@ -169,12 +183,9 @@ void Cover::publish_state(bool save) {
   if (traits.get_supports_tilt()) {
     ESP_LOGD(TAG, "  Tilt: %.0f%%", this->tilt * 100.0f);
   }
-  ESP_LOGD(TAG, "  Current Operation: %s", LOG_STR_ARG(cover_operation_to_str(this->current_operation)));
+  ESP_LOGD(TAG, "  Current Operation: %s", cover_operation_to_str(this->current_operation));
 
   this->state_callback_.call();
-#if defined(USE_COVER) && defined(USE_CONTROLLER_REGISTRY)
-  ControllerRegistry::notify_cover_update(this);
-#endif
 
   if (save) {
     CoverRestoreState restore{};
@@ -187,7 +198,7 @@ void Cover::publish_state(bool save) {
   }
 }
 optional<CoverRestoreState> Cover::restore_state_() {
-  this->rtc_ = global_preferences->make_preference<CoverRestoreState>(this->get_preference_hash());
+  this->rtc_ = global_preferences->make_preference<CoverRestoreState>(this->get_object_id_hash());
   CoverRestoreState recovered{};
   if (!this->rtc_.load(&recovered))
     return {};
@@ -211,4 +222,5 @@ void CoverRestoreState::apply(Cover *cover) {
   cover->publish_state();
 }
 
-}  // namespace esphome::cover
+}  // namespace cover
+}  // namespace esphome

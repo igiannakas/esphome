@@ -5,6 +5,7 @@ from ..defines import CONF_WIDGET
 from ..lvcode import (
     API_EVENT,
     EVENT_ARG,
+    LVGL_COMP_ARG,
     UPDATE_EVENT,
     LambdaContext,
     LvContext,
@@ -29,7 +30,7 @@ async def to_code(config):
     await wait_for_widgets()
     async with LambdaContext(EVENT_ARG) as lamb:
         lv_add(sensor.publish_state(widget.get_value()))
-    async with LvContext():
+    async with LvContext(LVGL_COMP_ARG):
         lv_add(
             lvgl_static.add_event_cb(
                 widget.obj,

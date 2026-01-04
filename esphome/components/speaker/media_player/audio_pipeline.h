@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef USE_ESP32
+#ifdef USE_ESP_IDF
 
 #include "esphome/components/audio/audio.h"
 #include "esphome/components/audio/audio_reader.h"
@@ -114,7 +114,6 @@ class AudioPipeline {
 
   bool hard_stop_{false};
   bool is_playing_{false};
-  bool is_finishing_{false};
   bool pause_state_{false};
   bool task_stack_in_psram_;
 

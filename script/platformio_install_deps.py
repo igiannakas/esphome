@@ -55,6 +55,4 @@ for section in config.sections():
             tools.append("-t")
             tools.append(tool)
 
-subprocess.check_call(
-    ["platformio", "pkg", "install", "-g", *libs, *platforms, *tools], close_fds=False
-)
+subprocess.check_call(["platformio", "pkg", "install", "-g", *libs, *platforms, *tools])

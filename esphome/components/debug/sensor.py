@@ -1,7 +1,6 @@
 import esphome.codegen as cg
 from esphome.components import sensor
 from esphome.components.esp32 import CONF_CPU_FREQUENCY
-from esphome.components.psram import DOMAIN as PSRAM_DOMAIN
 import esphome.config_validation as cv
 from esphome.const import (
     CONF_BLOCK,
@@ -55,7 +54,7 @@ CONFIG_SCHEMA = {
     ),
     cv.Optional(CONF_PSRAM): cv.All(
         cv.only_on_esp32,
-        cv.requires_component(PSRAM_DOMAIN),
+        cv.requires_component("psram"),
         sensor.sensor_schema(
             unit_of_measurement=UNIT_BYTES,
             icon=ICON_COUNTER,

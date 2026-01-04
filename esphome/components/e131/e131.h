@@ -7,6 +7,7 @@
 #include <cinttypes>
 #include <map>
 #include <memory>
+#include <set>
 #include <vector>
 
 namespace esphome {
@@ -46,8 +47,9 @@ class E131Component : public esphome::Component {
 
   E131ListenMethod listen_method_{E131_MULTICAST};
   std::unique_ptr<socket::Socket> socket_;
-  std::vector<E131AddressableLightEffect *> light_effects_;
+  std::set<E131AddressableLightEffect *> light_effects_;
   std::map<int, int> universe_consumers_;
+  std::map<int, E131Packet> universe_packets_;
 };
 
 }  // namespace e131

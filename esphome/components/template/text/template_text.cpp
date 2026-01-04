@@ -1,21 +1,26 @@
 #include "template_text.h"
 #include "esphome/core/log.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
 static const char *const TAG = "template.text";
 
 void TemplateText::setup() {
-  if (this->f_.has_value())
-    return;
+  if (!(this->f_ == nullptr)) {
+    if (this->f_.has_value())
+      return;
+  }
+
+  ESP_LOGCONFIG(TAG, "Running setup for '%s'", this->name_.c_str());
   std::string value = this->initial_value_;
   if (!this->pref_) {
     ESP_LOGD(TAG, "State from initial: %s", value.c_str());
   } else {
-    uint32_t key = this->get_preference_hash();
+    uint32_t key = this->get_object_id_hash();
     key += this->traits.get_min_length() << 2;
     key += this->traits.get_max_length() << 4;
-    key += fnv1_hash(this->traits.get_pattern_c_str()) << 6;
+    key += fnv1_hash(this->traits.get_pattern()) << 6;
     this->pref_->setup(key, value);
   }
   if (!value.empty())
@@ -23,13 +28,17 @@ void TemplateText::setup() {
 }
 
 void TemplateText::update() {
+  if (this->f_ == nullptr)
+    return;
+
   if (!this->f_.has_value())
     return;
 
-  auto val = this->f_();
-  if (val.has_value()) {
-    this->publish_state(*val);
-  }
+  auto val = (*this->f_)();
+  if (!val.has_value())
+    return;
+
+  this->publish_state(*val);
 }
 
 void TemplateText::control(const std::string &value) {
@@ -50,4 +59,5 @@ void TemplateText::dump_config() {
   LOG_UPDATE_INTERVAL(this);
 }
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome

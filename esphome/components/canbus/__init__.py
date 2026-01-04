@@ -4,7 +4,7 @@ from esphome import automation
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.const import CONF_DATA, CONF_ID, CONF_TRIGGER_ID
-from esphome.core import CORE, ID
+from esphome.core import CORE
 
 CODEOWNERS = ["@mvturnho", "@danielschramm"]
 IS_PLATFORM_COMPONENT = True
@@ -22,8 +22,9 @@ def validate_id(config):
     if CONF_CAN_ID in config:
         can_id = config[CONF_CAN_ID]
         id_ext = config[CONF_USE_EXTENDED_ID]
-        if not id_ext and can_id > 0x7FF:
-            raise cv.Invalid("Standard IDs must be 11 Bit (0x000-0x7ff / 0-2047)")
+        if not id_ext:
+            if can_id > 0x7FF:
+                raise cv.Invalid("Standard IDs must be 11 Bit (0x000-0x7ff / 0-2047)")
     return config
 
 
@@ -176,8 +177,5 @@ async def canbus_action_to_code(config, action_id, template_arg, args):
     else:
         if isinstance(data, bytes):
             data = [int(x) for x in data]
-        # Generate static array in flash to avoid RAM copy
-        arr_id = ID(f"{action_id}_data", is_declaration=True, type=cg.uint8)
-        arr = cg.static_const_array(arr_id, cg.ArrayInitializer(*data))
-        cg.add(var.set_data_static(arr, len(data)))
+        cg.add(var.set_data_static(data))
     return var

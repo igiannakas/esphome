@@ -8,7 +8,8 @@
 #include "light_call.h"
 #include "light_state.h"
 
-namespace esphome::light {
+namespace esphome {
+namespace light {
 
 class LightJSONSchema {
  public:
@@ -21,6 +22,7 @@ class LightJSONSchema {
   static void parse_color_json(LightState &state, LightCall &call, JsonObject root);
 };
 
-}  // namespace esphome::light
+}  // namespace light
+}  // namespace esphome
 
 #endif

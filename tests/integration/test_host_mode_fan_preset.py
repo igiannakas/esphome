@@ -23,7 +23,9 @@ async def test_host_mode_fan_preset(
         entities = await client.list_entities_services()
         fans: list[FanInfo] = []
         for entity_list in entities:
-            fans.extend(entity for entity in entity_list if isinstance(entity, FanInfo))
+            for entity in entity_list:
+                if isinstance(entity, FanInfo):
+                    fans.append(entity)
 
         # Create a map of fan names to entity info
         fan_map = {fan.name: fan for fan in fans}

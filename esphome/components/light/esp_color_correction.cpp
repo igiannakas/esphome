@@ -2,7 +2,8 @@
 #include "light_color_values.h"
 #include "esphome/core/log.h"
 
-namespace esphome::light {
+namespace esphome {
+namespace light {
 
 void ESPColorCorrection::calculate_gamma_table(float gamma) {
   for (uint16_t i = 0; i < 256; i++) {
@@ -22,4 +23,5 @@ void ESPColorCorrection::calculate_gamma_table(float gamma) {
   }
 }
 
-}  // namespace esphome::light
+}  // namespace light
+}  // namespace esphome

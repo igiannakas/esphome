@@ -50,6 +50,8 @@ static bool check_model_and_device_match(INAModel model, uint16_t dev_id) {
 }
 
 void INA2XX::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
+
   if (!this->reset_config_()) {
     ESP_LOGE(TAG, "Reset failed, check connection");
     this->mark_failed();
@@ -257,12 +259,7 @@ bool INA2XX::reset_energy_counters() {
 bool INA2XX::reset_config_() {
   ESP_LOGV(TAG, "Reset");
   ConfigurationRegister cfg{0};
-  if (!this->reset_on_boot_) {
-    ESP_LOGI(TAG, "Skipping on-boot device reset");
-    cfg.RST = false;
-  } else {
-    cfg.RST = true;
-  }
+  cfg.RST = true;
   return this->write_unsigned_16_(RegisterMap::REG_CONFIG, cfg.raw_u16);
 }
 

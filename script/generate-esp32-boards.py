@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 
-import argparse
 import json
-from pathlib import Path
+import os
 import subprocess
-import sys
 import tempfile
 
-from esphome.components.esp32 import PLATFORM_VERSION_LOOKUP
-from esphome.helpers import write_file_if_changed
+from esphome.components.esp32 import ESP_IDF_PLATFORM_VERSION as ver
 
-ver = PLATFORM_VERSION_LOOKUP["recommended"]
 version_str = f"{ver.major}.{ver.minor:02d}.{ver.patch:02d}"
-root = Path(__file__).parent.parent
-boards_file_path = root / "esphome" / "components" / "esp32" / "boards.py"
+print(f"ESP32 Platform Version: {version_str}")
 
 
 def get_boards():
@@ -22,9 +17,6 @@ def get_boards():
             [
                 "git",
                 "clone",
-                "-q",
-                "-c",
-                "advice.detachedHead=false",
                 "--depth",
                 "1",
                 "--branch",
@@ -34,14 +26,16 @@ def get_boards():
             ],
             check=True,
         )
-        boards_directory = Path(tempdir) / "boards"
+        boards_file = os.path.join(tempdir, "boards")
         boards = {}
-        for fname in boards_directory.glob("*.json"):
-            with fname.open(encoding="utf-8") as f:
+        for fname in os.listdir(boards_file):
+            if not fname.endswith(".json"):
+                continue
+            with open(os.path.join(boards_file, fname), encoding="utf-8") as f:
                 board_info = json.load(f)
                 mcu = board_info["build"]["mcu"]
                 name = board_info["name"]
-                board = fname.stem
+                board = fname[:-5]
                 variant = mcu.upper()
                 boards[board] = {
                     "name": name,
@@ -53,47 +47,31 @@ def get_boards():
 TEMPLATE = """    "%s": {
         "name": "%s",
         "variant": %s,
-    },"""
+    },
+"""
 
 
-def main(check: bool):
+def main():
     boards = get_boards()
     # open boards.py, delete existing BOARDS variable and write the new boards dict
-    existing_content = boards_file_path.read_text(encoding="UTF-8")
+    boards_file_path = os.path.join(
+        os.path.dirname(__file__), "..", "esphome", "components", "esp32", "boards.py"
+    )
+    with open(boards_file_path, encoding="UTF-8") as f:
+        lines = f.readlines()
 
-    parts: list[str] = []
-    for line in existing_content.splitlines():
-        if line == "BOARDS = {":
-            parts.append(line)
-            parts.extend(
-                TEMPLATE % (board, info["name"], info["variant"])
-                for board, info in sorted(boards.items())
-            )
-            parts.append("}")
-            parts.append("# DO NOT ADD ANYTHING BELOW THIS LINE")
-            break
+    with open(boards_file_path, "w", encoding="UTF-8") as f:
+        for line in lines:
+            if line.startswith("BOARDS = {"):
+                f.write("BOARDS = {\n")
+                for board, info in sorted(boards.items()):
+                    f.write(TEMPLATE % (board, info["name"], info["variant"]))
+                f.write("}\n")
+                break
 
-        parts.append(line)
-
-    parts.append("")
-    content = "\n".join(parts)
-
-    if check:
-        if existing_content != content:
-            print("boards.py file is not up to date.")
-            print("Please run `script/generate-esp32-boards.py`")
-            sys.exit(1)
-        print("boards.py file is up to date")
-    elif write_file_if_changed(boards_file_path, content):
-        print("ESP32 boards updated successfully.")
+            f.write(line)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--check",
-        help="Check if the boards.py file is up to date.",
-        action="store_true",
-    )
-    args = parser.parse_args()
-    main(args.check)
+    main()
+    print("ESP32 boards updated successfully.")

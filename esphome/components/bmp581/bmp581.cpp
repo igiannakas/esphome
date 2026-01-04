@@ -128,6 +128,8 @@ void BMP581Component::setup() {
    */
 
   this->error_code_ = NONE;
+  ESP_LOGCONFIG(TAG, "Running setup");
+
   ////////////////////
   // 1) Soft reboot //
   ////////////////////

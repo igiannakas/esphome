@@ -1,7 +1,8 @@
 #include "esp_range_view.h"
 #include "addressable_light.h"
 
-namespace esphome::light {
+namespace esphome {
+namespace light {
 
 int32_t HOT interpret_index(int32_t index, int32_t size) {
   if (index < 0)
@@ -91,4 +92,5 @@ ESPRangeView &ESPRangeView::operator=(const ESPRangeView &rhs) {  // NOLINT
 
 ESPColorView ESPRangeIterator::operator*() const { return this->range_.parent_->get(this->i_); }
 
-}  // namespace esphome::light
+}  // namespace light
+}  // namespace esphome

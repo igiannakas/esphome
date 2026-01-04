@@ -1,5 +1,4 @@
 #include "xiaomi_cgdk2.h"
-#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 #ifdef USE_ESP32
@@ -9,14 +8,11 @@ namespace xiaomi_cgdk2 {
 
 static const char *const TAG = "xiaomi_cgdk2";
 
-static constexpr size_t CGDK2_BINDKEY_SIZE = 16;
-
 void XiaomiCGDK2::dump_config() {
-  char bindkey_hex[format_hex_pretty_size(CGDK2_BINDKEY_SIZE)];
   ESP_LOGCONFIG(TAG,
                 "Xiaomi CGDK2\n"
                 "  Bindkey: %s",
-                format_hex_pretty_to(bindkey_hex, this->bindkey_, CGDK2_BINDKEY_SIZE, '.'));
+                format_hex_pretty(this->bindkey_, 16).c_str());
   LOG_SENSOR("  ", "Temperature", this->temperature_);
   LOG_SENSOR("  ", "Humidity", this->humidity_);
   LOG_SENSOR("  ", "Battery Level", this->battery_level_);

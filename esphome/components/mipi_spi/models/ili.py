@@ -1,4 +1,8 @@
-from esphome.components.mipi import (
+from esphome.components.spi import TYPE_OCTAL
+
+from .. import MODE_RGB
+from . import DriverChip, delay
+from .commands import (
     ADJCTL3,
     CSCON,
     DFUNCTR,
@@ -14,7 +18,6 @@ from esphome.components.mipi import (
     IFCTR,
     IFMODE,
     INVCTR,
-    MODE_RGB,
     NORON,
     PWCTR1,
     PWCTR2,
@@ -29,10 +32,7 @@ from esphome.components.mipi import (
     VMCTR1,
     VMCTR2,
     VSCRSADD,
-    DriverChip,
-    delay,
 )
-from esphome.components.spi import TYPE_OCTAL
 
 DriverChip(
     "M5CORE",
@@ -148,19 +148,6 @@ ILI9341 = DriverChip(
         ),
     ),
 )
-# M5Stack Core2 uses ILI9341 chip - mirror_x disabled for correct orientation
-ILI9341.extend(
-    "M5CORE2",
-    width=320,
-    height=240,
-    mirror_x=False,
-    cs_pin=5,
-    dc_pin=15,
-    invert_colors=True,
-    pixel_mode="18bit",
-    data_rate="40MHz",
-)
-
 DriverChip(
     "ILI9481",
     mirror_x=True,

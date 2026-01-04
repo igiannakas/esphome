@@ -5,13 +5,7 @@ from esphome.const import CONF_LEVEL, CONF_LOGGER, ENTITY_CATEGORY_CONFIG, ICON_
 from esphome.core import CORE
 from esphome.cpp_helpers import register_component, register_parented
 
-from .. import (
-    CONF_LOGGER_ID,
-    LOG_LEVELS,
-    Logger,
-    logger_ns,
-    request_logger_level_listeners,
-)
+from .. import CONF_LOGGER_ID, LOG_LEVELS, Logger, logger_ns
 
 CODEOWNERS = ["@clydebarrow"]
 
@@ -27,7 +21,6 @@ CONFIG_SCHEMA = select.select_schema(
 
 
 async def to_code(config):
-    request_logger_level_listeners()
     parent = await cg.get_variable(config[CONF_LOGGER_ID])
     levels = list(LOG_LEVELS)
     index = levels.index(CORE.data[CONF_LOGGER][CONF_LEVEL])

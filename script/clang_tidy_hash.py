@@ -48,10 +48,9 @@ def parse_requirement_line(line: str) -> tuple[str, str] | None:
     return None
 
 
-def get_clang_tidy_version_from_requirements(repo_root: Path | None = None) -> str:
+def get_clang_tidy_version_from_requirements() -> str:
     """Get clang-tidy version from requirements_dev.txt"""
-    repo_root = _ensure_repo_root(repo_root)
-    requirements_path = repo_root / "requirements_dev.txt"
+    requirements_path = Path(__file__).parent.parent / "requirements_dev.txt"
     lines = read_file_lines(requirements_path)
 
     for line in lines:
@@ -63,55 +62,55 @@ def get_clang_tidy_version_from_requirements(repo_root: Path | None = None) -> s
     return "clang-tidy version not found"
 
 
+def extract_platformio_flags() -> str:
+    """Extract clang-tidy related flags from platformio.ini"""
+    flags: list[str] = []
+    in_clangtidy_section = False
+
+    platformio_path = Path(__file__).parent.parent / "platformio.ini"
+    lines = read_file_lines(platformio_path)
+    for line in lines:
+        line = line.strip()
+        if line.startswith("[flags:clangtidy]"):
+            in_clangtidy_section = True
+            continue
+        elif line.startswith("[") and in_clangtidy_section:
+            break
+        elif in_clangtidy_section and line and not line.startswith("#"):
+            flags.append(line)
+
+    return "\n".join(sorted(flags))
+
+
 def read_file_bytes(path: Path) -> bytes:
     """Read bytes from a file."""
     with open(path, "rb") as f:
         return f.read()
 
 
-def get_repo_root() -> Path:
-    """Get the repository root directory."""
-    return Path(__file__).parent.parent
-
-
-def _ensure_repo_root(repo_root: Path | None) -> Path:
-    """Ensure repo_root is a Path, using default if None."""
-    return repo_root if repo_root is not None else get_repo_root()
-
-
-def calculate_clang_tidy_hash(repo_root: Path | None = None) -> str:
+def calculate_clang_tidy_hash() -> str:
     """Calculate hash of clang-tidy configuration and version"""
-    repo_root = _ensure_repo_root(repo_root)
-
     hasher = hashlib.sha256()
 
     # Hash .clang-tidy file
-    clang_tidy_path = repo_root / ".clang-tidy"
+    clang_tidy_path = Path(__file__).parent.parent / ".clang-tidy"
     content = read_file_bytes(clang_tidy_path)
     hasher.update(content)
 
     # Hash clang-tidy version from requirements_dev.txt
-    version = get_clang_tidy_version_from_requirements(repo_root)
+    version = get_clang_tidy_version_from_requirements()
     hasher.update(version.encode())
 
-    # Hash the entire platformio.ini file
-    platformio_path = repo_root / "platformio.ini"
-    platformio_content = read_file_bytes(platformio_path)
-    hasher.update(platformio_content)
-
-    # Hash sdkconfig.defaults file
-    sdkconfig_path = repo_root / "sdkconfig.defaults"
-    if sdkconfig_path.exists():
-        sdkconfig_content = read_file_bytes(sdkconfig_path)
-        hasher.update(sdkconfig_content)
+    # Hash relevant platformio.ini sections
+    pio_flags = extract_platformio_flags()
+    hasher.update(pio_flags.encode())
 
     return hasher.hexdigest()
 
 
-def read_stored_hash(repo_root: Path | None = None) -> str | None:
+def read_stored_hash() -> str | None:
     """Read the stored hash from file"""
-    repo_root = _ensure_repo_root(repo_root)
-    hash_file = repo_root / ".clang-tidy.hash"
+    hash_file = Path(__file__).parent.parent / ".clang-tidy.hash"
     if hash_file.exists():
         lines = read_file_lines(hash_file)
         return lines[0].strip() if lines else None
@@ -124,12 +123,10 @@ def write_file_content(path: Path, content: str) -> None:
         f.write(content)
 
 
-def write_hash(hash_value: str, repo_root: Path | None = None) -> None:
+def write_hash(hash_value: str) -> None:
     """Write hash to file"""
-    repo_root = _ensure_repo_root(repo_root)
-    hash_file = repo_root / ".clang-tidy.hash"
-    # Strip any trailing newlines to ensure consistent formatting
-    write_file_content(hash_file, hash_value.strip() + "\n")
+    hash_file = Path(__file__).parent.parent / ".clang-tidy.hash"
+    write_file_content(hash_file, hash_value)
 
 
 def main() -> None:
@@ -155,28 +152,8 @@ def main() -> None:
     stored_hash = read_stored_hash()
 
     if args.check:
-        # Check if hash changed OR if .clang-tidy.hash was updated in this PR
-        # This is used in CI to determine if a full clang-tidy scan is needed
-        hash_changed = current_hash != stored_hash
-
-        # Lazy import to avoid requiring dependencies that aren't needed for other modes
-        from helpers import changed_files  # noqa: E402
-
-        hash_file_updated = ".clang-tidy.hash" in changed_files()
-
-        # Exit 0 if full scan needed
-        sys.exit(0 if (hash_changed or hash_file_updated) else 1)
-
-    elif args.verify:
-        # Verify that hash file is up to date with current configuration
-        # This is used in pre-commit and CI checks to ensure hash was updated
-        if current_hash != stored_hash:
-            print("ERROR: Clang-tidy configuration has changed but hash not updated!")
-            print(f"Expected: {current_hash}")
-            print(f"Found: {stored_hash}")
-            print("\nPlease run: script/clang_tidy_hash.py --update")
-            sys.exit(1)
-        print("Hash verification passed")
+        # Exit 0 if full scan needed (hash changed or no hash file)
+        sys.exit(0 if current_hash != stored_hash else 1)
 
     elif args.update:
         write_hash(current_hash)
@@ -191,6 +168,15 @@ def main() -> None:
         else:
             print("Clang-tidy hash unchanged")
             sys.exit(0)
+
+    elif args.verify:
+        if current_hash != stored_hash:
+            print("ERROR: Clang-tidy configuration has changed but hash not updated!")
+            print(f"Expected: {current_hash}")
+            print(f"Found: {stored_hash}")
+            print("\nPlease run: script/clang_tidy_hash.py --update")
+            sys.exit(1)
+        print("Hash verification passed")
 
     else:
         print(f"Current hash: {current_hash}")

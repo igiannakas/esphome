@@ -3,7 +3,8 @@
 #include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
 
 #ifdef USE_ESP32
-namespace esphome::ble_client {
+namespace esphome {
+namespace ble_client {
 
 static const char *const TAG = "ble_binary_output";
 
@@ -13,7 +14,7 @@ void BLEBinaryOutput::dump_config() {
                 "  MAC address        : %s\n"
                 "  Service UUID       : %s\n"
                 "  Characteristic UUID: %s",
-                this->parent_->address_str(), this->service_uuid_.to_string().c_str(),
+                this->parent_->address_str().c_str(), this->service_uuid_.to_string().c_str(),
                 this->char_uuid_.to_string().c_str());
   LOG_BINARY_OUTPUT(this);
 }
@@ -43,7 +44,7 @@ void BLEBinaryOutput::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_i
       }
       this->node_state = espbt::ClientState::ESTABLISHED;
       ESP_LOGD(TAG, "Found characteristic %s on device %s", this->char_uuid_.to_string().c_str(),
-               this->parent()->address_str());
+               this->parent()->address_str().c_str());
       this->node_state = espbt::ClientState::ESTABLISHED;
       break;
     }
@@ -74,5 +75,6 @@ void BLEBinaryOutput::write_state(bool state) {
     ESP_LOGW(TAG, "[%s] Write error, err=%d", this->char_uuid_.to_string().c_str(), err);
 }
 
-}  // namespace esphome::ble_client
+}  // namespace ble_client
+}  // namespace esphome
 #endif

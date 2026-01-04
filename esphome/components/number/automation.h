@@ -4,7 +4,8 @@
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
 
-namespace esphome::number {
+namespace esphome {
+namespace number {
 
 class NumberStateTrigger : public Trigger<float> {
  public:
@@ -18,7 +19,7 @@ template<typename... Ts> class NumberSetAction : public Action<Ts...> {
   NumberSetAction(Number *number) : number_(number) {}
   TEMPLATABLE_VALUE(float, value)
 
-  void play(const Ts &...x) override {
+  void play(Ts... x) override {
     auto call = this->number_->make_call();
     call.set_value(this->value_.value(x...));
     call.perform();
@@ -34,7 +35,7 @@ template<typename... Ts> class NumberOperationAction : public Action<Ts...> {
   TEMPLATABLE_VALUE(NumberOperation, operation)
   TEMPLATABLE_VALUE(bool, cycle)
 
-  void play(const Ts &...x) override {
+  void play(Ts... x) override {
     auto call = this->number_->make_call();
     call.with_operation(this->operation_.value(x...));
     if (this->cycle_.has_value()) {
@@ -73,7 +74,7 @@ template<typename... Ts> class NumberInRangeCondition : public Condition<Ts...> 
 
   void set_min(float min) { this->min_ = min; }
   void set_max(float max) { this->max_ = max; }
-  bool check(const Ts &...x) override {
+  bool check(Ts... x) override {
     const float state = this->parent_->state;
     if (std::isnan(this->min_)) {
       return state <= this->max_;
@@ -90,4 +91,5 @@ template<typename... Ts> class NumberInRangeCondition : public Condition<Ts...> 
   float max_{NAN};
 };
 
-}  // namespace esphome::number
+}  // namespace number
+}  // namespace esphome

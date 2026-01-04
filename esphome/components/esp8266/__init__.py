@@ -1,5 +1,5 @@
 import logging
-from pathlib import Path
+import os
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
@@ -15,9 +15,8 @@ from esphome.const import (
     KEY_TARGET_FRAMEWORK,
     KEY_TARGET_PLATFORM,
     PLATFORM_ESP8266,
-    ThreadModel,
 )
-from esphome.core import CORE, CoroPriority, coroutine_with_priority
+from esphome.core import CORE, coroutine_with_priority
 from esphome.helpers import copy_file_if_changed
 
 from .boards import BOARDS, ESP8266_LD_SCRIPTS
@@ -28,7 +27,6 @@ from .const import (
     KEY_ESP8266,
     KEY_FLASH_SIZE,
     KEY_PIN_INITIAL_STATES,
-    KEY_WAVEFORM_REQUIRED,
     esp8266_ns,
 )
 from .gpio import PinInitialState, add_pin_initial_states_array
@@ -177,7 +175,7 @@ CONFIG_SCHEMA = cv.All(
 )
 
 
-@coroutine_with_priority(CoroPriority.PLATFORM)
+@coroutine_with_priority(1000)
 async def to_code(config):
     cg.add(esp8266_ns.setup_preferences())
 
@@ -189,17 +187,8 @@ async def to_code(config):
     cg.set_cpp_standard("gnu++20")
     cg.add_define("ESPHOME_BOARD", config[CONF_BOARD])
     cg.add_define("ESPHOME_VARIANT", "ESP8266")
-    cg.add_define(ThreadModel.SINGLE)
 
-    cg.add_platformio_option(
-        "extra_scripts",
-        [
-            "pre:testing_mode.py",
-            "pre:exclude_updater.py",
-            "pre:exclude_waveform.py",
-            "post:post_build.py",
-        ],
-    )
+    cg.add_platformio_option("extra_scripts", ["post:post_build.py"])
 
     conf = config[CONF_FRAMEWORK]
     cg.add_platformio_option("framework", "arduino")
@@ -239,12 +228,6 @@ async def to_code(config):
     # For cases where nullptrs can be handled, use nothrow: `new (std::nothrow) T;`
     cg.add_build_flag("-DNEW_OOM_ABORT")
 
-    # In testing mode, fake larger memory to allow linking grouped component tests
-    # Real ESP8266 hardware only has 32KB IRAM and ~80KB RAM, but for CI testing
-    # we pretend it has much larger memory to test that components compile together
-    if CORE.testing_mode:
-        cg.add_build_flag("-DESPHOME_TESTING_MODE")
-
     cg.add_platformio_option("board_build.flash_mode", config[CONF_BOARD_FLASH_MODE])
 
     ver: cv.Version = CORE.data[KEY_CORE][KEY_FRAMEWORK_VERSION]
@@ -260,7 +243,7 @@ async def to_code(config):
         if ver <= cv.Version(2, 3, 0):
             # No ld script support
             ld_script = None
-        elif ver <= cv.Version(2, 4, 2):
+        if ver <= cv.Version(2, 4, 2):
             # Old ld script path
             ld_script = ld_scripts[0]
         else:
@@ -270,42 +253,13 @@ async def to_code(config):
             cg.add_platformio_option("board_build.ldscript", ld_script)
 
     CORE.add_job(add_pin_initial_states_array)
-    CORE.add_job(finalize_waveform_config)
-
-
-@coroutine_with_priority(CoroPriority.WORKAROUNDS)
-async def finalize_waveform_config() -> None:
-    """Add waveform stubs define if waveform is not required.
-
-    This runs at WORKAROUNDS priority (-999) to ensure all components
-    have had a chance to call require_waveform() first.
-    """
-    if not CORE.data.get(KEY_ESP8266, {}).get(KEY_WAVEFORM_REQUIRED, False):
-        # No component needs waveform - enable stubs and exclude Arduino waveform code
-        # Use build flag (visible to both C++ code and PlatformIO script)
-        cg.add_build_flag("-DUSE_ESP8266_WAVEFORM_STUBS")
 
 
 # Called by writer.py
-def copy_files() -> None:
-    dir = Path(__file__).parent
-    post_build_file = dir / "post_build.py.script"
+def copy_files():
+    dir = os.path.dirname(__file__)
+    post_build_file = os.path.join(dir, "post_build.py.script")
     copy_file_if_changed(
         post_build_file,
         CORE.relative_build_path("post_build.py"),
-    )
-    testing_mode_file = dir / "testing_mode.py.script"
-    copy_file_if_changed(
-        testing_mode_file,
-        CORE.relative_build_path("testing_mode.py"),
-    )
-    exclude_updater_file = dir / "exclude_updater.py.script"
-    copy_file_if_changed(
-        exclude_updater_file,
-        CORE.relative_build_path("exclude_updater.py"),
-    )
-    exclude_waveform_file = dir / "exclude_waveform.py.script"
-    copy_file_if_changed(
-        exclude_waveform_file,
-        CORE.relative_build_path("exclude_waveform.py"),
     )

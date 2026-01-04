@@ -5,7 +5,8 @@
 
 #ifdef USE_ESP32
 
-namespace esphome::ble_client {
+namespace esphome {
+namespace ble_client {
 
 class BLESensorNotifyTrigger : public Trigger<float>, public BLESensor {
  public:
@@ -34,6 +35,7 @@ class BLESensorNotifyTrigger : public Trigger<float>, public BLESensor {
   BLESensor *sensor_;
 };
 
-}  // namespace esphome::ble_client
+}  // namespace ble_client
+}  // namespace esphome
 
 #endif

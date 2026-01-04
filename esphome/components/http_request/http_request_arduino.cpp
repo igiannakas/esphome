@@ -1,6 +1,6 @@
 #include "http_request_arduino.h"
 
-#if defined(USE_ARDUINO) && !defined(USE_ESP32)
+#ifdef USE_ARDUINO
 
 #include "esphome/components/network/util.h"
 #include "esphome/components/watchdog/watchdog.h"
@@ -9,14 +9,14 @@
 #include "esphome/core/defines.h"
 #include "esphome/core/log.h"
 
-namespace esphome::http_request {
+namespace esphome {
+namespace http_request {
 
 static const char *const TAG = "http_request.arduino";
 
-std::shared_ptr<HttpContainer> HttpRequestArduino::perform(const std::string &url, const std::string &method,
-                                                           const std::string &body,
-                                                           const std::list<Header> &request_headers,
-                                                           const std::set<std::string> &collect_headers) {
+std::shared_ptr<HttpContainer> HttpRequestArduino::perform(std::string url, std::string method, std::string body,
+                                                           std::list<Header> request_headers,
+                                                           std::set<std::string> collect_headers) {
   if (!network::is_connected()) {
     this->status_momentary_error("failed", 1000);
     ESP_LOGW(TAG, "HTTP Request failed; Not connected to network");
@@ -74,6 +74,8 @@ std::shared_ptr<HttpContainer> HttpRequestArduino::perform(const std::string &ur
     container->client_.setInsecure();
   }
   bool status = container->client_.begin(url.c_str());
+#elif defined(USE_ESP32)
+  bool status = container->client_.begin(url.c_str());
 #endif
 
   App.feed_wdt();
@@ -87,6 +89,9 @@ std::shared_ptr<HttpContainer> HttpRequestArduino::perform(const std::string &ur
 
   container->client_.setReuse(true);
   container->client_.setTimeout(this->timeout_);
+#if defined(USE_ESP32)
+  container->client_.setConnectTimeout(this->timeout_);
+#endif
 
   if (this->useragent_ != nullptr) {
     container->client_.setUserAgent(this->useragent_);
@@ -171,6 +176,7 @@ void HttpContainerArduino::end() {
   this->client_.end();
 }
 
-}  // namespace esphome::http_request
+}  // namespace http_request
+}  // namespace esphome
 
-#endif  // USE_ARDUINO && !USE_ESP32
+#endif  // USE_ARDUINO

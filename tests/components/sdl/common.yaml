@@ -13,14 +13,11 @@ display:
 
 binary_sensor:
   - platform: sdl
-    sdl_id: sdl_display
     id: key_up
-    key: SDLK_UP
+    key: SDLK_a
   - platform: sdl
-    sdl_id: sdl_display
     id: key_down
-    key: SDLK_DOWN
+    key: SDLK_d
   - platform: sdl
-    sdl_id: sdl_display
     id: key_enter
-    key: SDLK_RETURN
+    key: SDLK_s

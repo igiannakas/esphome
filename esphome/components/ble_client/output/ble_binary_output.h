@@ -7,7 +7,8 @@
 
 #ifdef USE_ESP32
 #include <esp_gattc_api.h>
-namespace esphome::ble_client {
+namespace esphome {
+namespace ble_client {
 
 namespace espbt = esphome::esp32_ble_tracker;
 
@@ -35,6 +36,7 @@ class BLEBinaryOutput : public output::BinaryOutput, public BLEClientNode, publi
   esp_gatt_write_type_t write_type_{};
 };
 
-}  // namespace esphome::ble_client
+}  // namespace ble_client
+}  // namespace esphome
 
 #endif

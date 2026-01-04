@@ -3,7 +3,8 @@
 #include "esphome/components/number/number.h"
 #include "../ld2420.h"
 
-namespace esphome::ld2420 {
+namespace esphome {
+namespace ld2420 {
 
 class LD2420TimeoutNumber : public number::Number, public Parented<LD2420Component> {
  public:
@@ -73,4 +74,5 @@ class LD2420MoveThresholdNumbers : public number::Number, public Parented<LD2420
   void control(float move_threshold) override;
 };
 
-}  // namespace esphome::ld2420
+}  // namespace ld2420
+}  // namespace esphome

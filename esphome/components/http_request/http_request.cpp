@@ -4,7 +4,8 @@
 
 #include <cinttypes>
 
-namespace esphome::http_request {
+namespace esphome {
+namespace http_request {
 
 static const char *const TAG = "http_request";
 
@@ -41,4 +42,5 @@ std::string HttpContainer::get_response_header(const std::string &header_name) {
   }
 }
 
-}  // namespace esphome::http_request
+}  // namespace http_request
+}  // namespace esphome

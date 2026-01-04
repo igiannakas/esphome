@@ -99,18 +99,17 @@ async def test_scheduler_heap_stress(
         )
 
         # Call the run_heap_stress_test service to start the test
-        await client.execute_service(run_stress_test_service, {})
+        client.execute_service(run_stress_test_service, {})
 
         # Wait for all callbacks to execute (should be quick, but give more time for scheduling)
         try:
-            await asyncio.wait_for(test_complete_future, timeout=10.0)
-        except TimeoutError:
+            await asyncio.wait_for(test_complete_future, timeout=60.0)
+        except asyncio.TimeoutError:
             # Report how many we got
-            missing_ids = sorted(set(range(1000)) - executed_callbacks)
             pytest.fail(
                 f"Stress test timed out. Only {len(executed_callbacks)} of "
                 f"1000 callbacks executed. Missing IDs: "
-                f"{missing_ids[:20]}... (total missing: {len(missing_ids)})"
+                f"{sorted(set(range(1000)) - executed_callbacks)[:10]}..."
             )
 
         # Verify all callbacks executed

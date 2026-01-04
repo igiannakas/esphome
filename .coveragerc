@@ -1,5 +1,4 @@
 [run]
-omit =
+omit = 
     esphome/components/*
-    esphome/analyze_memory/*
     tests/integration/*

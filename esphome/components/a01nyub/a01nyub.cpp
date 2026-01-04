@@ -30,9 +30,7 @@ void A01nyubComponent::check_buffer_() {
       ESP_LOGV(TAG, "Distance from sensor: %f mm, %f m", distance, meters);
       this->publish_state(meters);
     } else {
-      char hex_buf[format_hex_pretty_size(4)];
-      ESP_LOGW(TAG, "Invalid data read from sensor: %s",
-               format_hex_pretty_to(hex_buf, this->buffer_.data(), this->buffer_.size()));
+      ESP_LOGW(TAG, "Invalid data read from sensor: %s", format_hex_pretty(this->buffer_).c_str());
     }
   } else {
     ESP_LOGW(TAG, "checksum failed: %02x != %02x", checksum, this->buffer_[3]);

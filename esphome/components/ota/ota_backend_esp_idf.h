@@ -1,5 +1,5 @@
 #pragma once
-#ifdef USE_ESP32
+#ifdef USE_ESP_IDF
 #include "ota_backend.h"
 
 #include "esphome/components/md5/md5.h"
@@ -29,4 +29,4 @@ class IDFOTABackend : public OTABackend {
 
 }  // namespace ota
 }  // namespace esphome
-#endif  // USE_ESP32
+#endif

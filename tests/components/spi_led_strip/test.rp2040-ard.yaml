@@ -1,4 +1,5 @@
-packages:
-  spi: !include ../../test_build_components/common/spi/rp2040-ard.yaml
+substitutions:
+  clk_pin: GPIO2
+  mosi_pin: GPIO3
 
 <<: !include common.yaml

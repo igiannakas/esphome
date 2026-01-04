@@ -5,6 +5,7 @@ namespace ds2484 {
 static const char *const TAG = "ds2484.onewire";
 
 void DS2484OneWireBus::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
   this->reset_device();
   this->search();
 }

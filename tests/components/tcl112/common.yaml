@@ -1,3 +1,7 @@
+remote_transmitter:
+  pin: ${pin}
+  carrier_duty_percent: 50%
+
 sensor:
   - platform: template
     id: tcl112_sensor
@@ -9,4 +13,3 @@ climate:
     supports_heat: true
     supports_cool: true
     sensor: tcl112_sensor
-    transmitter_id: xmitr

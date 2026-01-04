@@ -50,8 +50,7 @@ class RingBuffer {
    * @param ticks_to_wait Maximum number of FreeRTOS ticks to wait (default: 0)
    * @return Number of bytes written
    */
-  size_t write_without_replacement(const void *data, size_t len, TickType_t ticks_to_wait = 0,
-                                   bool write_partial = true);
+  size_t write_without_replacement(const void *data, size_t len, TickType_t ticks_to_wait = 0);
 
   /**
    * @brief Returns the number of available bytes in the ring buffer.

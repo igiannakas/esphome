@@ -42,10 +42,9 @@ class HostPreferences : public ESPPreferences {
     if (len > 255)
       return false;
     this->setup_();
-    auto it = this->data.find(key);
-    if (it == this->data.end())
+    if (this->data.count(key) == 0)
       return false;
-    const auto &vec = it->second;
+    auto vec = this->data[key];
     if (vec.size() != len)
       return false;
     memcpy(data, vec.data(), len);

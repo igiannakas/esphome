@@ -56,48 +56,25 @@ optional<std::string> ToLowerFilter::new_value(std::string value) {
 }
 
 // Append
-optional<std::string> AppendFilter::new_value(std::string value) {
-  value.append(this->suffix_);
-  return value;
-}
+optional<std::string> AppendFilter::new_value(std::string value) { return value + this->suffix_; }
 
 // Prepend
-optional<std::string> PrependFilter::new_value(std::string value) {
-  value.insert(0, this->prefix_);
-  return value;
-}
+optional<std::string> PrependFilter::new_value(std::string value) { return this->prefix_ + value; }
 
 // Substitute
-SubstituteFilter::SubstituteFilter(const std::initializer_list<Substitution> &substitutions)
-    : substitutions_(substitutions) {}
-
 optional<std::string> SubstituteFilter::new_value(std::string value) {
-  for (const auto &sub : this->substitutions_) {
-    // Compute lengths once per substitution (strlen is fast, called infrequently)
-    const size_t from_len = strlen(sub.from);
-    const size_t to_len = strlen(sub.to);
-    std::size_t pos = 0;
-    while ((pos = value.find(sub.from, pos, from_len)) != std::string::npos) {
-      value.replace(pos, from_len, sub.to, to_len);
-      // Advance past the replacement to avoid infinite loop when
-      // the replacement contains the search pattern (e.g., f -> foo)
-      pos += to_len;
-    }
+  std::size_t pos;
+  for (size_t i = 0; i < this->from_strings_.size(); i++) {
+    while ((pos = value.find(this->from_strings_[i])) != std::string::npos)
+      value.replace(pos, this->from_strings_[i].size(), this->to_strings_[i]);
   }
   return value;
 }
 
 // Map
-MapFilter::MapFilter(const std::initializer_list<Substitution> &mappings) : mappings_(mappings) {}
-
 optional<std::string> MapFilter::new_value(std::string value) {
-  for (const auto &mapping : this->mappings_) {
-    if (value == mapping.from) {
-      value.assign(mapping.to);
-      return value;
-    }
-  }
-  return value;  // Pass through if no match
+  auto item = mappings_.find(value);
+  return item == mappings_.end() ? value : item->second;
 }
 
 }  // namespace text_sensor

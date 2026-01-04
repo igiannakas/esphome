@@ -3,9 +3,7 @@
 
 #ifdef USE_ESP32
 
-#ifndef CONFIG_ESP_HOSTED_ENABLE_BT_BLUEDROID
 #include <esp_bt.h>
-#endif
 #include <esp_bt_main.h>
 #include <esp_gap_ble_api.h>
 #include <freertos/FreeRTOS.h>
@@ -15,6 +13,10 @@
 
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
+
+#ifdef USE_ARDUINO
+#include <esp32-hal-bt.h>
+#endif
 
 namespace esphome {
 namespace esp32_ble_beacon {
@@ -29,13 +31,12 @@ void ESP32BLEBeacon::dump_config() {
   char uuid[37];
   char *bpos = uuid;
   for (int8_t ii = 0; ii < 16; ++ii) {
-    *bpos++ = format_hex_pretty_char(this->uuid_[ii] >> 4);
-    *bpos++ = format_hex_pretty_char(this->uuid_[ii] & 0x0F);
+    bpos += sprintf(bpos, "%02X", this->uuid_[ii]);
     if (ii == 3 || ii == 5 || ii == 7 || ii == 9) {
-      *bpos++ = '-';
+      bpos += sprintf(bpos, "-");
     }
   }
-  *bpos = '\0';
+  uuid[36] = '\0';
   ESP_LOGCONFIG(TAG,
                 "  UUID: %s, Major: %u, Minor: %u, Min Interval: %ums, Max Interval: %ums, Measured Power: %d"
                 ", TX Power: %ddBm",

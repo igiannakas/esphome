@@ -1,7 +1,6 @@
 #include "veml7700.h"
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
-#include <limits>
 
 namespace esphome {
 namespace veml7700 {
@@ -13,30 +12,30 @@ static float reduce_to_zero(float a, float b) { return (a > b) ? (a - b) : 0; }
 
 template<typename T, size_t size> T get_next(const T (&array)[size], const T val) {
   size_t i = 0;
-  size_t idx = std::numeric_limits<size_t>::max();
-  while (idx == std::numeric_limits<size_t>::max() && i < size) {
+  size_t idx = -1;
+  while (idx == -1 && i < size) {
     if (array[i] == val) {
       idx = i;
       break;
     }
     i++;
   }
-  if (idx == std::numeric_limits<size_t>::max() || i + 1 >= size)
+  if (idx == -1 || i + 1 >= size)
     return val;
   return array[i + 1];
 }
 
 template<typename T, size_t size> T get_prev(const T (&array)[size], const T val) {
   size_t i = size - 1;
-  size_t idx = std::numeric_limits<size_t>::max();
-  while (idx == std::numeric_limits<size_t>::max() && i > 0) {
+  size_t idx = -1;
+  while (idx == -1 && i > 0) {
     if (array[i] == val) {
       idx = i;
       break;
     }
     i--;
   }
-  if (idx == std::numeric_limits<size_t>::max() || i == 0)
+  if (idx == -1 || i == 0)
     return val;
   return array[i - 1];
 }
@@ -79,6 +78,8 @@ static const char *get_gain_str(Gain gain) {
 }
 
 void VEML7700Component::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
+
   auto err = this->configure_();
   if (err != i2c::ERROR_OK) {
     ESP_LOGW(TAG, "Sensor configuration failed");
@@ -280,18 +281,20 @@ ErrorCode VEML7700Component::reconfigure_time_and_gain_(IntegrationTime time, Ga
 }
 
 ErrorCode VEML7700Component::read_sensor_output_(Readings &data) {
-  auto als_err = this->read_register((uint8_t) CommandRegisters::ALS, (uint8_t *) &data.als_counts, VEML_REG_SIZE);
+  auto als_err =
+      this->read_register((uint8_t) CommandRegisters::ALS, (uint8_t *) &data.als_counts, VEML_REG_SIZE, false);
   if (als_err != i2c::ERROR_OK) {
     ESP_LOGW(TAG, "Error reading ALS register, err = %d", als_err);
   }
   auto white_err =
-      this->read_register((uint8_t) CommandRegisters::WHITE, (uint8_t *) &data.white_counts, VEML_REG_SIZE);
+      this->read_register((uint8_t) CommandRegisters::WHITE, (uint8_t *) &data.white_counts, VEML_REG_SIZE, false);
   if (white_err != i2c::ERROR_OK) {
     ESP_LOGW(TAG, "Error reading WHITE register, err = %d", white_err);
   }
 
   ConfigurationRegister conf{0};
-  auto err = this->read_register((uint8_t) CommandRegisters::ALS_CONF_0, (uint8_t *) conf.raw_bytes, VEML_REG_SIZE);
+  auto err =
+      this->read_register((uint8_t) CommandRegisters::ALS_CONF_0, (uint8_t *) conf.raw_bytes, VEML_REG_SIZE, false);
   if (err != i2c::ERROR_OK) {
     ESP_LOGW(TAG, "Error reading ALS_CONF_0 register, err = %d", white_err);
   }

@@ -3,7 +3,8 @@
 #include "esp_color_view.h"
 #include "esp_hsv_color.h"
 
-namespace esphome::light {
+namespace esphome {
+namespace light {
 
 int32_t interpret_index(int32_t index, int32_t size);
 
@@ -75,4 +76,5 @@ class ESPRangeIterator {
   int32_t i_;
 };
 
-}  // namespace esphome::light
+}  // namespace light
+}  // namespace esphome

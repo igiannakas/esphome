@@ -17,10 +17,11 @@ class CheckboxType(WidgetType):
             CONF_CHECKBOX,
             LvBoolean("lv_checkbox_t"),
             (CONF_MAIN, CONF_INDICATOR),
-            {
-                **TEXT_SCHEMA,
-                Optional(CONF_PAD_COLUMN): padding,
-            },
+            TEXT_SCHEMA.extend(
+                {
+                    Optional(CONF_PAD_COLUMN): padding,
+                }
+            ),
         )
 
     async def to_code(self, w: Widget, config):

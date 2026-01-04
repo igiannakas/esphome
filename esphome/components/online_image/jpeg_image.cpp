@@ -25,10 +25,8 @@ static int draw_callback(JPEGDRAW *jpeg) {
   // to avoid crashing.
   App.feed_wdt();
   size_t position = 0;
-  size_t height = static_cast<size_t>(jpeg->iHeight);
-  size_t width = static_cast<size_t>(jpeg->iWidth);
-  for (size_t y = 0; y < height; y++) {
-    for (size_t x = 0; x < width; x++) {
+  for (size_t y = 0; y < jpeg->iHeight; y++) {
+    for (size_t x = 0; x < jpeg->iWidth; x++) {
       auto rg = decode_value(jpeg->pPixels[position++]);
       auto ba = decode_value(jpeg->pPixels[position++]);
       Color color(rg[1], rg[0], ba[1], ba[0]);

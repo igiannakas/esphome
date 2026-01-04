@@ -1,6 +1,6 @@
 #pragma once
 
-#if defined(USE_ARDUINO) && !defined(USE_ESP32)
+#ifdef USE_ARDUINO
 
 #include <Wire.h>
 #include "esphome/core/component.h"
@@ -19,8 +19,8 @@ class ArduinoI2CBus : public InternalI2CBus, public Component {
  public:
   void setup() override;
   void dump_config() override;
-  ErrorCode write_readv(uint8_t address, const uint8_t *write_buffer, size_t write_count, uint8_t *read_buffer,
-                        size_t read_count) override;
+  ErrorCode readv(uint8_t address, ReadBuffer *buffers, size_t cnt) override;
+  ErrorCode writev(uint8_t address, WriteBuffer *buffers, size_t cnt, bool stop) override;
   float get_setup_priority() const override { return setup_priority::BUS; }
 
   void set_scan(bool scan) { scan_ = scan; }
@@ -29,7 +29,7 @@ class ArduinoI2CBus : public InternalI2CBus, public Component {
   void set_frequency(uint32_t frequency) { frequency_ = frequency; }
   void set_timeout(uint32_t timeout) { timeout_ = timeout; }
 
-  int get_port() const override { return 0; }
+  int get_port() const override { return this->port_; }
 
  private:
   void recover_();
@@ -37,6 +37,7 @@ class ArduinoI2CBus : public InternalI2CBus, public Component {
   RecoveryCode recovery_result_;
 
  protected:
+  int8_t port_{-1};
   TwoWire *wire_;
   uint8_t sda_pin_;
   uint8_t scl_pin_;
@@ -48,4 +49,4 @@ class ArduinoI2CBus : public InternalI2CBus, public Component {
 }  // namespace i2c
 }  // namespace esphome
 
-#endif  // defined(USE_ARDUINO) && !defined(USE_ESP32)
+#endif  // USE_ARDUINO

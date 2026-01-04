@@ -8,9 +8,6 @@ namespace vbus {
 
 static const char *const TAG = "vbus";
 
-// Maximum bytes to log in verbose hex output (16 frames * 4 bytes = 64 bytes typical)
-static constexpr size_t VBUS_MAX_LOG_BYTES = 64;
-
 void VBus::dump_config() {
   ESP_LOGCONFIG(TAG, "VBus:");
   check_uart_settings(9600);
@@ -104,11 +101,8 @@ void VBus::loop() {
         this->buffer_.push_back(this->fbytes_[i]);
       if (++this->cframe_ < this->frames_)
         continue;
-#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
-      char hex_buf[format_hex_size(VBUS_MAX_LOG_BYTES)];
-#endif
       ESP_LOGV(TAG, "P2 C%04x %04x->%04x: %s", this->command_, this->source_, this->dest_,
-               format_hex_to(hex_buf, this->buffer_.data(), this->buffer_.size()));
+               format_hex(this->buffer_).c_str());
       for (auto &listener : this->listeners_)
         listener->on_message(this->command_, this->source_, this->dest_, this->buffer_);
       this->state_ = 0;

@@ -2,7 +2,8 @@
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
 
-namespace esphome::uart {
+namespace esphome {
+namespace uart {
 
 static const char *const TAG = "uart.switch";
 
@@ -57,4 +58,5 @@ void UARTSwitch::dump_config() {
   }
 }
 
-}  // namespace esphome::uart
+}  // namespace uart
+}  // namespace esphome

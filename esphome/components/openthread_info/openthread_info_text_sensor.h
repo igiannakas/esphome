@@ -5,7 +5,8 @@
 #include "esphome/core/component.h"
 #ifdef USE_OPENTHREAD
 
-namespace esphome::openthread_info {
+namespace esphome {
+namespace openthread_info {
 
 using esphome::openthread::InstanceLock;
 
@@ -212,5 +213,6 @@ class ExtPanIdOpenThreadInfo : public DatasetOpenThreadInfo, public text_sensor:
   std::array<uint8_t, 8> last_extpanid_{};
 };
 
-}  // namespace esphome::openthread_info
+}  // namespace openthread_info
+}  // namespace esphome
 #endif

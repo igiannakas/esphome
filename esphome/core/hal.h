@@ -3,8 +3,16 @@
 #include <cstdint>
 #include "gpio.h"
 
-#if defined(USE_ESP32)
+#if defined(USE_ESP32_FRAMEWORK_ESP_IDF)
 #include <esp_attr.h>
+#ifndef PROGMEM
+#define PROGMEM
+#endif
+
+#elif defined(USE_ESP32_FRAMEWORK_ARDUINO)
+
+#include <esp_attr.h>
+
 #ifndef PROGMEM
 #define PROGMEM
 #endif

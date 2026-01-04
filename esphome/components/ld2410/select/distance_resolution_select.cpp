@@ -1,10 +1,12 @@
 #include "distance_resolution_select.h"
 
-namespace esphome::ld2410 {
+namespace esphome {
+namespace ld2410 {
 
-void DistanceResolutionSelect::control(size_t index) {
-  this->publish_state(index);
-  this->parent_->set_distance_resolution(this->option_at(index));
+void DistanceResolutionSelect::control(const std::string &value) {
+  this->publish_state(value);
+  this->parent_->set_distance_resolution(state);
 }
 
-}  // namespace esphome::ld2410
+}  // namespace ld2410
+}  // namespace esphome

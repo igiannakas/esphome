@@ -1,8 +1,8 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.core import CoroPriority, coroutine_with_priority
+from esphome.core import coroutine_with_priority
 
-CODEOWNERS = ["@esphome/core"]
+CODEOWNERS = ["@OttoWinter"]
 json_ns = cg.esphome_ns.namespace("json")
 
 CONFIG_SCHEMA = cv.All(
@@ -10,8 +10,8 @@ CONFIG_SCHEMA = cv.All(
 )
 
 
-@coroutine_with_priority(CoroPriority.BUS)
+@coroutine_with_priority(1.0)
 async def to_code(config):
-    cg.add_library("bblanchon/ArduinoJson", "7.4.2")
+    cg.add_library("bblanchon/ArduinoJson", "6.18.5")
     cg.add_define("USE_JSON")
     cg.add_global(json_ns.using)

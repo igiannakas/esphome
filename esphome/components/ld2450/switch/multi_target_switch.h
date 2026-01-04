@@ -3,7 +3,8 @@
 #include "esphome/components/switch/switch.h"
 #include "../ld2450.h"
 
-namespace esphome::ld2450 {
+namespace esphome {
+namespace ld2450 {
 
 class MultiTargetSwitch : public switch_::Switch, public Parented<LD2450Component> {
  public:
@@ -13,4 +14,5 @@ class MultiTargetSwitch : public switch_::Switch, public Parented<LD2450Componen
   void write_state(bool state) override;
 };
 
-}  // namespace esphome::ld2450
+}  // namespace ld2450
+}  // namespace esphome

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tuple>
+#include <vector>
 #include "esphome/components/i2c/i2c.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/core/component.h"
@@ -58,19 +60,17 @@ class LTR390Component : public PollingComponent, public i2c::I2CDevice {
   void set_uv_sensor(sensor::Sensor *uv_sensor) { this->uv_sensor_ = uv_sensor; }
 
  protected:
-  static constexpr uint8_t ENABLED_MODE_ALS = 1 << 0;
-  static constexpr uint8_t ENABLED_MODE_UVS = 1 << 1;
-
   optional<uint32_t> read_sensor_data_(LTR390MODE mode);
 
   void read_als_();
   void read_uvs_();
 
-  void read_mode_(LTR390MODE mode);
-  void standby_();
+  void read_mode_(int mode_index);
 
-  bool reading_{false};
-  uint8_t enabled_modes_{0};
+  bool reading_;
+
+  // a list of modes and corresponding read functions
+  std::vector<std::tuple<LTR390MODE, std::function<void()>>> mode_funcs_;
 
   LTR390GAIN gain_als_;
   LTR390GAIN gain_uv_;

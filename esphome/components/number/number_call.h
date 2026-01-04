@@ -1,14 +1,14 @@
 #pragma once
 
 #include "esphome/core/helpers.h"
-#include "esphome/core/log.h"
 #include "number_traits.h"
 
-namespace esphome::number {
+namespace esphome {
+namespace number {
 
 class Number;
 
-enum NumberOperation : uint8_t {
+enum NumberOperation {
   NUMBER_OP_NONE,
   NUMBER_OP_SET,
   NUMBER_OP_INCREMENT,
@@ -33,14 +33,11 @@ class NumberCall {
   NumberCall &with_cycle(bool cycle);
 
  protected:
-  void log_perform_warning_(const LogString *message);
-  void log_perform_warning_value_range_(const LogString *comparison, const LogString *limit_type, float val,
-                                        float limit);
-
   Number *const parent_;
-  optional<float> value_;
   NumberOperation operation_{NUMBER_OP_NONE};
-  bool cycle_{false};
+  optional<float> value_;
+  bool cycle_;
 };
 
-}  // namespace esphome::number
+}  // namespace number
+}  // namespace esphome

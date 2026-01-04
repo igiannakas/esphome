@@ -28,8 +28,6 @@ from esphome.const import (
     CONF_ON_RAW_VALUE,
     CONF_ON_VALUE,
     CONF_ON_VALUE_RANGE,
-    CONF_OPTIMISTIC,
-    CONF_PERIOD,
     CONF_QUANTILE,
     CONF_SEND_EVERY,
     CONF_SEND_FIRST_AT,
@@ -43,7 +41,6 @@ from esphome.const import (
     CONF_VALUE,
     CONF_WEB_SERVER,
     CONF_WINDOW_SIZE,
-    DEVICE_CLASS_ABSOLUTE_HUMIDITY,
     DEVICE_CLASS_APPARENT_POWER,
     DEVICE_CLASS_AQI,
     DEVICE_CLASS_AREA,
@@ -76,7 +73,6 @@ from esphome.const import (
     DEVICE_CLASS_OZONE,
     DEVICE_CLASS_PH,
     DEVICE_CLASS_PM1,
-    DEVICE_CLASS_PM4,
     DEVICE_CLASS_PM10,
     DEVICE_CLASS_PM25,
     DEVICE_CLASS_POWER,
@@ -91,7 +87,6 @@ from esphome.const import (
     DEVICE_CLASS_SPEED,
     DEVICE_CLASS_SULPHUR_DIOXIDE,
     DEVICE_CLASS_TEMPERATURE,
-    DEVICE_CLASS_TEMPERATURE_DELTA,
     DEVICE_CLASS_TIMESTAMP,
     DEVICE_CLASS_VOLATILE_ORGANIC_COMPOUNDS,
     DEVICE_CLASS_VOLATILE_ORGANIC_COMPOUNDS_PARTS,
@@ -105,14 +100,13 @@ from esphome.const import (
     DEVICE_CLASS_WIND_SPEED,
     ENTITY_CATEGORY_CONFIG,
 )
-from esphome.core import CORE, CoroPriority, coroutine_with_priority
+from esphome.core import CORE, coroutine_with_priority
 from esphome.core.entity_helpers import entity_duplicate_validator, setup_entity
 from esphome.cpp_generator import MockObjClass
 from esphome.util import Registry
 
 CODEOWNERS = ["@esphome/core"]
 DEVICE_CLASSES = [
-    DEVICE_CLASS_ABSOLUTE_HUMIDITY,
     DEVICE_CLASS_APPARENT_POWER,
     DEVICE_CLASS_AQI,
     DEVICE_CLASS_AREA,
@@ -147,7 +141,6 @@ DEVICE_CLASSES = [
     DEVICE_CLASS_PM1,
     DEVICE_CLASS_PM10,
     DEVICE_CLASS_PM25,
-    DEVICE_CLASS_PM4,
     DEVICE_CLASS_POWER,
     DEVICE_CLASS_POWER_FACTOR,
     DEVICE_CLASS_PRECIPITATION,
@@ -160,7 +153,6 @@ DEVICE_CLASSES = [
     DEVICE_CLASS_SPEED,
     DEVICE_CLASS_SULPHUR_DIOXIDE,
     DEVICE_CLASS_TEMPERATURE,
-    DEVICE_CLASS_TEMPERATURE_DELTA,
     DEVICE_CLASS_TIMESTAMP,
     DEVICE_CLASS_VOLATILE_ORGANIC_COMPOUNDS,
     DEVICE_CLASS_VOLATILE_ORGANIC_COMPOUNDS_PARTS,
@@ -182,7 +174,6 @@ STATE_CLASSES = {
     "measurement": StateClasses.STATE_CLASS_MEASUREMENT,
     "total_increasing": StateClasses.STATE_CLASS_TOTAL_INCREASING,
     "total": StateClasses.STATE_CLASS_TOTAL,
-    "measurement_angle": StateClasses.STATE_CLASS_MEASUREMENT_ANGLE,
 }
 validate_state_class = cv.enum(STATE_CLASSES, lower=True, space="_")
 
@@ -254,26 +245,16 @@ MaxFilter = sensor_ns.class_("MaxFilter", Filter)
 SlidingWindowMovingAverageFilter = sensor_ns.class_(
     "SlidingWindowMovingAverageFilter", Filter
 )
-StreamingMinFilter = sensor_ns.class_("StreamingMinFilter", Filter)
-StreamingMaxFilter = sensor_ns.class_("StreamingMaxFilter", Filter)
-StreamingMovingAverageFilter = sensor_ns.class_("StreamingMovingAverageFilter", Filter)
 ExponentialMovingAverageFilter = sensor_ns.class_(
     "ExponentialMovingAverageFilter", Filter
 )
 ThrottleAverageFilter = sensor_ns.class_("ThrottleAverageFilter", Filter, cg.Component)
 LambdaFilter = sensor_ns.class_("LambdaFilter", Filter)
-StatelessLambdaFilter = sensor_ns.class_("StatelessLambdaFilter", Filter)
 OffsetFilter = sensor_ns.class_("OffsetFilter", Filter)
 MultiplyFilter = sensor_ns.class_("MultiplyFilter", Filter)
-ValueListFilter = sensor_ns.class_("ValueListFilter", Filter)
-FilterOutValueFilter = sensor_ns.class_("FilterOutValueFilter", ValueListFilter)
+FilterOutValueFilter = sensor_ns.class_("FilterOutValueFilter", Filter)
 ThrottleFilter = sensor_ns.class_("ThrottleFilter", Filter)
-ThrottleWithPriorityFilter = sensor_ns.class_(
-    "ThrottleWithPriorityFilter", ValueListFilter
-)
-TimeoutFilterBase = sensor_ns.class_("TimeoutFilterBase", Filter, cg.Component)
-TimeoutFilterLast = sensor_ns.class_("TimeoutFilterLast", TimeoutFilterBase)
-TimeoutFilterConfigured = sensor_ns.class_("TimeoutFilterConfigured", TimeoutFilterBase)
+TimeoutFilter = sensor_ns.class_("TimeoutFilter", Filter, cg.Component)
 DebounceFilter = sensor_ns.class_("DebounceFilter", Filter, cg.Component)
 HeartbeatFilter = sensor_ns.class_("HeartbeatFilter", Filter, cg.Component)
 DeltaFilter = sensor_ns.class_("DeltaFilter", Filter)
@@ -304,6 +285,9 @@ _SENSOR_SCHEMA = (
             cv.Optional(CONF_DEVICE_CLASS): validate_device_class,
             cv.Optional(CONF_STATE_CLASS): validate_state_class,
             cv.Optional(CONF_ENTITY_CATEGORY): sensor_entity_category,
+            cv.Optional("last_reset_type"): cv.invalid(
+                "last_reset_type has been removed since 2021.9.0. state_class: total_increasing should be used for total values."
+            ),
             cv.Optional(CONF_FORCE_UPDATE, default=False): cv.boolean,
             cv.Optional(CONF_EXPIRE_AFTER): cv.All(
                 cv.requires_component("mqtt"),
@@ -346,7 +330,6 @@ def sensor_schema(
     device_class: str = cv.UNDEFINED,
     state_class: str = cv.UNDEFINED,
     entity_category: str = cv.UNDEFINED,
-    filters: list = cv.UNDEFINED,
 ) -> cv.Schema:
     schema = {}
 
@@ -361,12 +344,16 @@ def sensor_schema(
         (CONF_DEVICE_CLASS, device_class, validate_device_class),
         (CONF_STATE_CLASS, state_class, validate_state_class),
         (CONF_ENTITY_CATEGORY, entity_category, sensor_entity_category),
-        (CONF_FILTERS, filters, validate_filters),
     ]:
         if default is not cv.UNDEFINED:
             schema[cv.Optional(key, default=default)] = validator
 
     return _SENSOR_SCHEMA.extend(schema)
+
+
+# Remove before 2025.11.0
+SENSOR_SCHEMA = sensor_schema()
+SENSOR_SCHEMA.add_extra(cv.deprecated_schema_constant("sensor"))
 
 
 @FILTER_REGISTRY.register("offset", OffsetFilter, cv.templatable(cv.float_))
@@ -456,21 +443,14 @@ async def skip_initial_filter_to_code(config, filter_id):
     return cg.new_Pvariable(filter_id, config)
 
 
-@FILTER_REGISTRY.register("min", Filter, MIN_SCHEMA)
+@FILTER_REGISTRY.register("min", MinFilter, MIN_SCHEMA)
 async def min_filter_to_code(config, filter_id):
-    window_size: int = config[CONF_WINDOW_SIZE]
-    send_every: int = config[CONF_SEND_EVERY]
-    send_first_at: int = config[CONF_SEND_FIRST_AT]
-
-    # Optimization: Use streaming filter for batch windows (window_size == send_every)
-    # Saves 99.98% memory for large windows (e.g., 20KB → 4 bytes for window_size=5000)
-    if window_size == send_every:
-        # Use streaming filter - O(1) memory instead of O(n)
-        rhs = StreamingMinFilter.new(window_size, send_first_at)
-        return cg.Pvariable(filter_id, rhs, StreamingMinFilter)
-    # Use sliding window filter - maintains ring buffer
-    rhs = MinFilter.new(window_size, send_every, send_first_at)
-    return cg.Pvariable(filter_id, rhs, MinFilter)
+    return cg.new_Pvariable(
+        filter_id,
+        config[CONF_WINDOW_SIZE],
+        config[CONF_SEND_EVERY],
+        config[CONF_SEND_FIRST_AT],
+    )
 
 
 MAX_SCHEMA = cv.All(
@@ -485,18 +465,14 @@ MAX_SCHEMA = cv.All(
 )
 
 
-@FILTER_REGISTRY.register("max", Filter, MAX_SCHEMA)
+@FILTER_REGISTRY.register("max", MaxFilter, MAX_SCHEMA)
 async def max_filter_to_code(config, filter_id):
-    window_size: int = config[CONF_WINDOW_SIZE]
-    send_every: int = config[CONF_SEND_EVERY]
-    send_first_at: int = config[CONF_SEND_FIRST_AT]
-
-    # Optimization: Use streaming filter for batch windows (window_size == send_every)
-    if window_size == send_every:
-        rhs = StreamingMaxFilter.new(window_size, send_first_at)
-        return cg.Pvariable(filter_id, rhs, StreamingMaxFilter)
-    rhs = MaxFilter.new(window_size, send_every, send_first_at)
-    return cg.Pvariable(filter_id, rhs, MaxFilter)
+    return cg.new_Pvariable(
+        filter_id,
+        config[CONF_WINDOW_SIZE],
+        config[CONF_SEND_EVERY],
+        config[CONF_SEND_FIRST_AT],
+    )
 
 
 SLIDING_AVERAGE_SCHEMA = cv.All(
@@ -513,20 +489,16 @@ SLIDING_AVERAGE_SCHEMA = cv.All(
 
 @FILTER_REGISTRY.register(
     "sliding_window_moving_average",
-    Filter,
+    SlidingWindowMovingAverageFilter,
     SLIDING_AVERAGE_SCHEMA,
 )
 async def sliding_window_moving_average_filter_to_code(config, filter_id):
-    window_size: int = config[CONF_WINDOW_SIZE]
-    send_every: int = config[CONF_SEND_EVERY]
-    send_first_at: int = config[CONF_SEND_FIRST_AT]
-
-    # Optimization: Use streaming filter for batch windows (window_size == send_every)
-    if window_size == send_every:
-        rhs = StreamingMovingAverageFilter.new(window_size, send_first_at)
-        return cg.Pvariable(filter_id, rhs, StreamingMovingAverageFilter)
-    rhs = SlidingWindowMovingAverageFilter.new(window_size, send_every, send_first_at)
-    return cg.Pvariable(filter_id, rhs, SlidingWindowMovingAverageFilter)
+    return cg.new_Pvariable(
+        filter_id,
+        config[CONF_WINDOW_SIZE],
+        config[CONF_SEND_EVERY],
+        config[CONF_SEND_FIRST_AT],
+    )
 
 
 EXPONENTIAL_AVERAGE_SCHEMA = cv.All(
@@ -569,7 +541,7 @@ async def lambda_filter_to_code(config, filter_id):
     lambda_ = await cg.process_lambda(
         config, [(float, "x")], return_type=cg.optional.template(float)
     )
-    return automation.new_lambda_pvariable(filter_id, lambda_, StatelessLambdaFilter)
+    return cg.new_Pvariable(filter_id, lambda_)
 
 
 DELTA_SCHEMA = cv.Schema(
@@ -619,52 +591,10 @@ async def throttle_filter_to_code(config, filter_id):
     return cg.new_Pvariable(filter_id, config)
 
 
-THROTTLE_WITH_PRIORITY_SCHEMA = cv.maybe_simple_value(
-    {
-        cv.Required(CONF_TIMEOUT): cv.positive_time_period_milliseconds,
-        cv.Optional(CONF_VALUE, default="nan"): cv.Any(
-            cv.templatable(cv.float_), [cv.templatable(cv.float_)]
-        ),
-    },
-    key=CONF_TIMEOUT,
-)
-
-
 @FILTER_REGISTRY.register(
-    "throttle_with_priority",
-    ThrottleWithPriorityFilter,
-    THROTTLE_WITH_PRIORITY_SCHEMA,
-)
-async def throttle_with_priority_filter_to_code(config, filter_id):
-    if not isinstance(config[CONF_VALUE], list):
-        config[CONF_VALUE] = [config[CONF_VALUE]]
-    template_ = [await cg.templatable(x, [], float) for x in config[CONF_VALUE]]
-    return cg.new_Pvariable(filter_id, config[CONF_TIMEOUT], template_)
-
-
-HEARTBEAT_SCHEMA = cv.Schema(
-    {
-        cv.Required(CONF_PERIOD): cv.positive_time_period_milliseconds,
-        cv.Optional(CONF_OPTIMISTIC, default=False): cv.boolean,
-    }
-)
-
-
-@FILTER_REGISTRY.register(
-    "heartbeat",
-    HeartbeatFilter,
-    cv.Any(
-        cv.positive_time_period_milliseconds,
-        HEARTBEAT_SCHEMA,
-    ),
+    "heartbeat", HeartbeatFilter, cv.positive_time_period_milliseconds
 )
 async def heartbeat_filter_to_code(config, filter_id):
-    if isinstance(config, dict):
-        var = cg.new_Pvariable(filter_id, config[CONF_PERIOD])
-        await cg.register_component(var, {})
-        cg.add(var.set_optimistic(config[CONF_OPTIMISTIC]))
-        return var
-
     var = cg.new_Pvariable(filter_id, config)
     await cg.register_component(var, {})
     return var
@@ -673,26 +603,16 @@ async def heartbeat_filter_to_code(config, filter_id):
 TIMEOUT_SCHEMA = cv.maybe_simple_value(
     {
         cv.Required(CONF_TIMEOUT): cv.positive_time_period_milliseconds,
-        cv.Optional(CONF_VALUE, default="nan"): cv.Any(
-            "last", cv.templatable(cv.float_)
-        ),
+        cv.Optional(CONF_VALUE, default="nan"): cv.templatable(cv.float_),
     },
     key=CONF_TIMEOUT,
 )
 
 
-@FILTER_REGISTRY.register("timeout", TimeoutFilterBase, TIMEOUT_SCHEMA)
+@FILTER_REGISTRY.register("timeout", TimeoutFilter, TIMEOUT_SCHEMA)
 async def timeout_filter_to_code(config, filter_id):
-    filter_id = filter_id.copy()
-    if config[CONF_VALUE] == "last":
-        # Use TimeoutFilterLast for "last" mode (smaller, more common - LD2450, LD2412, etc.)
-        filter_id.type = TimeoutFilterLast
-        var = cg.new_Pvariable(filter_id, config[CONF_TIMEOUT])
-    else:
-        # Use TimeoutFilterConfigured for configured value mode
-        filter_id.type = TimeoutFilterConfigured
-        template_ = await cg.templatable(config[CONF_VALUE], [], float)
-        var = cg.new_Pvariable(filter_id, config[CONF_TIMEOUT], template_)
+    template_ = await cg.templatable(config[CONF_VALUE], [], float)
+    var = cg.new_Pvariable(filter_id, config[CONF_TIMEOUT], template_)
     await cg.register_component(var, {})
     return var
 
@@ -879,9 +799,7 @@ async def setup_sensor_core_(var, config):
         cg.add(var.set_unit_of_measurement(unit_of_measurement))
     if (accuracy_decimals := config.get(CONF_ACCURACY_DECIMALS)) is not None:
         cg.add(var.set_accuracy_decimals(accuracy_decimals))
-    # Only set force_update if True (default is False)
-    if config[CONF_FORCE_UPDATE]:
-        cg.add(var.set_force_update(True))
+    cg.add(var.set_force_update(config[CONF_FORCE_UPDATE]))
     if config.get(CONF_FILTERS):  # must exist and not be empty
         filters = await build_filters(config[CONF_FILTERS])
         cg.add(var.set_filters(filters))
@@ -1191,6 +1109,7 @@ def _lstsq(a, b):
     return _mat_dot(_mat_dot(x, a_t), b)
 
 
-@coroutine_with_priority(CoroPriority.CORE)
+@coroutine_with_priority(100.0)
 async def to_code(config):
+    cg.add_define("USE_SENSOR")
     cg.add_global(sensor_ns.using)

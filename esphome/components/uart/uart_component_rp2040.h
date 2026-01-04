@@ -11,7 +11,8 @@
 #include "esphome/core/log.h"
 #include "uart_component.h"
 
-namespace esphome::uart {
+namespace esphome {
+namespace uart {
 
 class RP2040UartComponent : public UARTComponent, public Component {
  public:
@@ -39,5 +40,7 @@ class RP2040UartComponent : public UARTComponent, public Component {
   HardwareSerial *serial_{nullptr};
 };
 
-}  // namespace esphome::uart
+}  // namespace uart
+}  // namespace esphome
+
 #endif  // USE_RP2040

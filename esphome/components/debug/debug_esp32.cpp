@@ -11,6 +11,8 @@
 #include <esp_chip_info.h>
 #include <esp_partition.h>
 
+#include <map>
+
 #ifdef USE_ARDUINO
 #include <Esp.h>
 #endif
@@ -50,7 +52,7 @@ void DebugComponent::on_shutdown() {
   char buffer[REBOOT_MAX_LEN]{};
   auto pref = global_preferences->make_preference(REBOOT_MAX_LEN, fnv1_hash(REBOOT_KEY + App.get_name()));
   if (component != nullptr) {
-    strncpy(buffer, LOG_STR_ARG(component->get_component_log_str()), REBOOT_MAX_LEN - 1);
+    strncpy(buffer, component->get_component_source(), REBOOT_MAX_LEN - 1);
     buffer[REBOOT_MAX_LEN - 1] = '\0';
   }
   ESP_LOGD(TAG, "Storing reboot source: %s", buffer);
@@ -123,12 +125,7 @@ void DebugComponent::log_partition_info_() {
 
 uint32_t DebugComponent::get_free_heap_() { return heap_caps_get_free_size(MALLOC_CAP_INTERNAL); }
 
-struct ChipFeature {
-  int bit;
-  const char *name;
-};
-
-static constexpr ChipFeature CHIP_FEATURES[] = {
+static const std::map<int, const char *> CHIP_FEATURES = {
     {CHIP_FEATURE_BLE, "BLE"},
     {CHIP_FEATURE_BT, "BT"},
     {CHIP_FEATURE_EMB_FLASH, "EMB Flash"},
@@ -173,13 +170,11 @@ void DebugComponent::get_device_info_(std::string &device_info) {
   esp_chip_info(&info);
   const char *model = ESPHOME_VARIANT;
   std::string features;
-
-  // Check each known feature bit
-  for (const auto &feature : CHIP_FEATURES) {
-    if (info.features & feature.bit) {
-      features += feature.name;
+  for (auto feature : CHIP_FEATURES) {
+    if (info.features & feature.first) {
+      features += feature.second;
       features += ", ";
-      info.features &= ~feature.bit;
+      info.features &= ~feature.first;
     }
   }
   if (info.features != 0)
@@ -200,7 +195,7 @@ void DebugComponent::get_device_info_(std::string &device_info) {
 #ifdef USE_ARDUINO
   ESP_LOGD(TAG, "Framework: Arduino");
   device_info += "Arduino";
-#elif defined(USE_ESP32)
+#elif defined(USE_ESP_IDF)
   ESP_LOGD(TAG, "Framework: ESP-IDF");
   device_info += "ESP-IDF";
 #else

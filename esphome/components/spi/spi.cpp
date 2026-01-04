@@ -2,7 +2,8 @@
 #include "esphome/core/log.h"
 #include "esphome/core/application.h"
 
-namespace esphome::spi {
+namespace esphome {
+namespace spi {
 
 const char *const TAG = "spi";
 
@@ -36,6 +37,8 @@ void SPIComponent::unregister_device(SPIClient *device) {
 }
 
 void SPIComponent::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
+
   if (this->sdo_pin_ == nullptr)
     this->sdo_pin_ = NullPin::NULL_PIN;
   if (this->sdi_pin_ == nullptr)
@@ -64,9 +67,9 @@ void SPIComponent::setup() {
 
 void SPIComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "SPI bus:");
-  LOG_PIN("  CLK Pin: ", this->clk_pin_);
-  LOG_PIN("  SDI Pin: ", this->sdi_pin_);
-  LOG_PIN("  SDO Pin: ", this->sdo_pin_);
+  LOG_PIN("  CLK Pin: ", this->clk_pin_)
+  LOG_PIN("  SDI Pin: ", this->sdi_pin_)
+  LOG_PIN("  SDO Pin: ", this->sdo_pin_)
   for (size_t i = 0; i != this->data_pins_.size(); i++) {
     ESP_LOGCONFIG(TAG, "  Data pin %u: GPIO%d", i, this->data_pins_[i]);
   }
@@ -118,4 +121,5 @@ uint16_t SPIDelegateBitBash::transfer_(uint16_t data, size_t num_bits) {
   return out_data;
 }
 
-}  // namespace esphome::spi
+}  // namespace spi
+}  // namespace esphome

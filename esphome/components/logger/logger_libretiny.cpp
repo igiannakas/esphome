@@ -1,7 +1,8 @@
 #ifdef USE_LIBRETINY
 #include "logger.h"
 
-namespace esphome::logger {
+namespace esphome {
+namespace logger {
 
 static const char *const TAG = "logger";
 
@@ -49,22 +50,13 @@ void Logger::pre_setup() {
   ESP_LOGI(TAG, "Log initialized");
 }
 
-void HOT Logger::write_msg_(const char *msg, size_t len) { this->hw_serial_->write(msg, len); }
+void HOT Logger::write_msg_(const char *msg) { this->hw_serial_->println(msg); }
 
-const LogString *Logger::get_uart_selection_() {
-  switch (this->uart_) {
-    case UART_SELECTION_DEFAULT:
-      return LOG_STR("DEFAULT");
-    case UART_SELECTION_UART0:
-      return LOG_STR("UART0");
-    case UART_SELECTION_UART1:
-      return LOG_STR("UART1");
-    case UART_SELECTION_UART2:
-    default:
-      return LOG_STR("UART2");
-  }
-}
+const char *const UART_SELECTIONS[] = {"DEFAULT", "UART0", "UART1", "UART2"};
 
-}  // namespace esphome::logger
+const char *Logger::get_uart_selection_() { return UART_SELECTIONS[this->uart_]; }
+
+}  // namespace logger
+}  // namespace esphome
 
 #endif  // USE_LIBRETINY

@@ -20,26 +20,22 @@ static const char *const TAG = "http_request.update";
 
 static const size_t MAX_READ_SIZE = 256;
 
-void HttpRequestUpdate::setup() { this->ota_parent_->add_state_listener(this); }
-
-void HttpRequestUpdate::on_ota_state(ota::OTAState state, float progress, uint8_t error) {
-  if (state == ota::OTAState::OTA_IN_PROGRESS) {
-    this->state_ = update::UPDATE_STATE_INSTALLING;
-    this->update_info_.has_progress = true;
-    this->update_info_.progress = progress;
-    this->publish_state();
-  } else if (state == ota::OTAState::OTA_ABORT || state == ota::OTAState::OTA_ERROR) {
-    this->state_ = update::UPDATE_STATE_AVAILABLE;
-    this->status_set_error(LOG_STR("Failed to install firmware"));
-    this->publish_state();
-  }
+void HttpRequestUpdate::setup() {
+  this->ota_parent_->add_on_state_callback([this](ota::OTAState state, float progress, uint8_t err) {
+    if (state == ota::OTAState::OTA_IN_PROGRESS) {
+      this->state_ = update::UPDATE_STATE_INSTALLING;
+      this->update_info_.has_progress = true;
+      this->update_info_.progress = progress;
+      this->publish_state();
+    } else if (state == ota::OTAState::OTA_ABORT || state == ota::OTAState::OTA_ERROR) {
+      this->state_ = update::UPDATE_STATE_AVAILABLE;
+      this->status_set_error("Failed to install firmware");
+      this->publish_state();
+    }
+  });
 }
 
 void HttpRequestUpdate::update() {
-  if (!network::is_connected()) {
-    ESP_LOGD(TAG, "Network not connected, skipping update check");
-    return;
-  }
 #ifdef USE_ESP32
   xTaskCreate(HttpRequestUpdate::update_task, "update_task", 8192, (void *) this, 1, &this->update_task_handle_);
 #else
@@ -53,19 +49,18 @@ void HttpRequestUpdate::update_task(void *params) {
   auto container = this_update->request_parent_->get(this_update->source_url_);
 
   if (container == nullptr || container->status_code != HTTP_STATUS_OK) {
-    ESP_LOGE(TAG, "Failed to fetch manifest from %s", this_update->source_url_.c_str());
+    std::string msg = str_sprintf("Failed to fetch manifest from %s", this_update->source_url_.c_str());
     // Defer to main loop to avoid race condition on component_state_ read-modify-write
-    this_update->defer([this_update]() { this_update->status_set_error(LOG_STR("Failed to fetch manifest")); });
+    this_update->defer([this_update, msg]() { this_update->status_set_error(msg.c_str()); });
     UPDATE_RETURN;
   }
 
   RAMAllocator<uint8_t> allocator;
   uint8_t *data = allocator.allocate(container->content_length);
   if (data == nullptr) {
-    ESP_LOGE(TAG, "Failed to allocate %zu bytes for manifest", container->content_length);
+    std::string msg = str_sprintf("Failed to allocate %zu bytes for manifest", container->content_length);
     // Defer to main loop to avoid race condition on component_state_ read-modify-write
-    this_update->defer(
-        [this_update]() { this_update->status_set_error(LOG_STR("Failed to allocate memory for manifest")); });
+    this_update->defer([this_update, msg]() { this_update->status_set_error(msg.c_str()); });
     container->end();
     UPDATE_RETURN;
   }
@@ -75,11 +70,6 @@ void HttpRequestUpdate::update_task(void *params) {
     int read_bytes = container->read(data + read_index, MAX_READ_SIZE);
 
     yield();
-
-    if (read_bytes <= 0) {
-      // Network error or connection closed - break to avoid infinite loop
-      break;
-    }
 
     read_index += read_bytes;
   }
@@ -93,7 +83,7 @@ void HttpRequestUpdate::update_task(void *params) {
     container.reset();  // Release ownership of the container's shared_ptr
 
     valid = json::parse_json(response, [this_update](JsonObject root) -> bool {
-      if (!root["name"].is<const char *>() || !root["version"].is<const char *>() || !root["builds"].is<JsonArray>()) {
+      if (!root.containsKey("name") || !root.containsKey("version") || !root.containsKey("builds")) {
         ESP_LOGE(TAG, "Manifest does not contain required fields");
         return false;
       }
@@ -101,26 +91,26 @@ void HttpRequestUpdate::update_task(void *params) {
       this_update->update_info_.latest_version = root["version"].as<std::string>();
 
       for (auto build : root["builds"].as<JsonArray>()) {
-        if (!build["chipFamily"].is<const char *>()) {
+        if (!build.containsKey("chipFamily")) {
           ESP_LOGE(TAG, "Manifest does not contain required fields");
           return false;
         }
         if (build["chipFamily"] == ESPHOME_VARIANT) {
-          if (!build["ota"].is<JsonObject>()) {
+          if (!build.containsKey("ota")) {
             ESP_LOGE(TAG, "Manifest does not contain required fields");
             return false;
           }
-          JsonObject ota = build["ota"].as<JsonObject>();
-          if (!ota["path"].is<const char *>() || !ota["md5"].is<const char *>()) {
+          auto ota = build["ota"];
+          if (!ota.containsKey("path") || !ota.containsKey("md5")) {
             ESP_LOGE(TAG, "Manifest does not contain required fields");
             return false;
           }
           this_update->update_info_.firmware_url = ota["path"].as<std::string>();
           this_update->update_info_.md5 = ota["md5"].as<std::string>();
 
-          if (ota["summary"].is<const char *>())
+          if (ota.containsKey("summary"))
             this_update->update_info_.summary = ota["summary"].as<std::string>();
-          if (ota["release_url"].is<const char *>())
+          if (ota.containsKey("release_url"))
             this_update->update_info_.release_url = ota["release_url"].as<std::string>();
 
           return true;
@@ -131,9 +121,9 @@ void HttpRequestUpdate::update_task(void *params) {
   }
 
   if (!valid) {
-    ESP_LOGE(TAG, "Failed to parse JSON from %s", this_update->source_url_.c_str());
+    std::string msg = str_sprintf("Failed to parse JSON from %s", this_update->source_url_.c_str());
     // Defer to main loop to avoid race condition on component_state_ read-modify-write
-    this_update->defer([this_update]() { this_update->status_set_error(LOG_STR("Failed to parse manifest JSON")); });
+    this_update->defer([this_update, msg]() { this_update->status_set_error(msg.c_str()); });
     UPDATE_RETURN;
   }
 

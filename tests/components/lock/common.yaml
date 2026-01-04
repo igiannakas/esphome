@@ -17,8 +17,9 @@ lock:
     lambda: |-
       if (millis() > 10000) {
         return LOCK_STATE_LOCKED;
+      } else {
+        return LOCK_STATE_UNLOCKED;
       }
-      return LOCK_STATE_UNLOCKED;
     optimistic: true
     assumed_state: false
     on_unlock:
@@ -26,9 +27,7 @@ lock:
           id: test_lock1
           state: !lambda "return LOCK_STATE_UNLOCKED;"
     on_lock:
-      - lock.template.publish:
-          id: test_lock1
-          state: LOCKED
+      - lock.template.publish: LOCKED
   - platform: output
     name: Generic Output Lock
     id: test_lock2

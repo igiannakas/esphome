@@ -1,10 +1,18 @@
 #include "micronova_button.h"
 
-namespace esphome::micronova {
+namespace esphome {
+namespace micronova {
 
 void MicroNovaButton::press_action() {
-  this->micronova_->write_address(this->memory_location_, this->memory_address_, this->memory_data_);
-  this->micronova_->request_update_listeners();
+  switch (this->get_function()) {
+    case MicroNovaFunctions::STOVE_FUNCTION_CUSTOM:
+      this->micronova_->write_address(this->memory_location_, this->memory_address_, this->memory_data_);
+      break;
+    default:
+      break;
+  }
+  this->micronova_->update();
 }
 
-}  // namespace esphome::micronova
+}  // namespace micronova
+}  // namespace esphome

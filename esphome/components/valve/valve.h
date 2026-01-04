@@ -3,7 +3,6 @@
 #include "esphome/core/component.h"
 #include "esphome/core/entity_base.h"
 #include "esphome/core/helpers.h"
-#include "esphome/core/log.h"
 #include "esphome/core/preferences.h"
 #include "valve_traits.h"
 
@@ -20,8 +19,8 @@ const extern float VALVE_CLOSED;
     if (traits_.get_is_assumed_state()) { \
       ESP_LOGCONFIG(TAG, "%s  Assumed State: YES", prefix); \
     } \
-    if (!(obj)->get_device_class_ref().empty()) { \
-      ESP_LOGCONFIG(TAG, "%s  Device Class: '%s'", prefix, (obj)->get_device_class_ref().c_str()); \
+    if (!(obj)->get_device_class().empty()) { \
+      ESP_LOGCONFIG(TAG, "%s  Device Class: '%s'", prefix, (obj)->get_device_class().c_str()); \
     } \
   }
 
@@ -82,7 +81,7 @@ enum ValveOperation : uint8_t {
   VALVE_OPERATION_CLOSING,
 };
 
-const LogString *valve_operation_to_str(ValveOperation op);
+const char *valve_operation_to_str(ValveOperation op);
 
 /** Base class for all valve devices.
  *
@@ -144,7 +143,7 @@ class Valve : public EntityBase, public EntityBase_DeviceClass {
 
   optional<ValveRestoreState> restore_state_();
 
-  LazyCallbackManager<void()> state_callback_{};
+  CallbackManager<void()> state_callback_{};
 
   ESPPreferenceObject rtc_;
 };

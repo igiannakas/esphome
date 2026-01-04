@@ -1,27 +1,26 @@
 #include "lock.h"
-#include "esphome/core/defines.h"
-#include "esphome/core/controller_registry.h"
 #include "esphome/core/log.h"
 
-namespace esphome::lock {
+namespace esphome {
+namespace lock {
 
 static const char *const TAG = "lock";
 
-const LogString *lock_state_to_string(LockState state) {
+const char *lock_state_to_string(LockState state) {
   switch (state) {
     case LOCK_STATE_LOCKED:
-      return LOG_STR("LOCKED");
+      return "LOCKED";
     case LOCK_STATE_UNLOCKED:
-      return LOG_STR("UNLOCKED");
+      return "UNLOCKED";
     case LOCK_STATE_JAMMED:
-      return LOG_STR("JAMMED");
+      return "JAMMED";
     case LOCK_STATE_LOCKING:
-      return LOG_STR("LOCKING");
+      return "LOCKING";
     case LOCK_STATE_UNLOCKING:
-      return LOG_STR("UNLOCKING");
+      return "UNLOCKING";
     case LOCK_STATE_NONE:
     default:
-      return LOG_STR("UNKNOWN");
+      return "UNKNOWN";
   }
 }
 
@@ -52,11 +51,8 @@ void Lock::publish_state(LockState state) {
 
   this->state = state;
   this->rtc_.save(&this->state);
-  ESP_LOGD(TAG, "'%s': Sending state %s", this->name_.c_str(), LOG_STR_ARG(lock_state_to_string(state)));
+  ESP_LOGD(TAG, "'%s': Sending state %s", this->name_.c_str(), lock_state_to_string(state));
   this->state_callback_.call();
-#if defined(USE_LOCK) && defined(USE_CONTROLLER_REGISTRY)
-  ControllerRegistry::notify_lock_update(this);
-#endif
 }
 
 void Lock::add_on_state_callback(std::function<void()> &&callback) { this->state_callback_.add(std::move(callback)); }
@@ -65,7 +61,8 @@ void LockCall::perform() {
   ESP_LOGD(TAG, "'%s' - Setting", this->parent_->get_name().c_str());
   this->validate_();
   if (this->state_.has_value()) {
-    ESP_LOGD(TAG, "  State: %s", LOG_STR_ARG(lock_state_to_string(*this->state_)));
+    const char *state_s = lock_state_to_string(*this->state_);
+    ESP_LOGD(TAG, "  State: %s", state_s);
   }
   this->parent_->control(*this);
 }
@@ -73,7 +70,7 @@ void LockCall::validate_() {
   if (this->state_.has_value()) {
     auto state = *this->state_;
     if (!this->parent_->traits.supports_state(state)) {
-      ESP_LOGW(TAG, "  State %s is not supported by this device!", LOG_STR_ARG(lock_state_to_string(*this->state_)));
+      ESP_LOGW(TAG, "  State %s is not supported by this device!", lock_state_to_string(*this->state_));
       this->state_.reset();
     }
   }
@@ -106,4 +103,5 @@ LockCall &LockCall::set_state(const std::string &state) {
 }
 const optional<LockState> &LockCall::get_state() const { return this->state_; }
 
-}  // namespace esphome::lock
+}  // namespace lock
+}  // namespace esphome

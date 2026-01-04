@@ -245,8 +245,10 @@ void WeikaiGPIOPin::setup() {
   this->pin_mode(this->flags_);
 }
 
-size_t WeikaiGPIOPin::dump_summary(char *buffer, size_t len) const {
-  return snprintf(buffer, len, "%u via WeiKai %s", this->pin_, this->parent_->get_name());
+std::string WeikaiGPIOPin::dump_summary() const {
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "%u via WeiKai %s", this->pin_, this->parent_->get_name());
+  return buffer;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

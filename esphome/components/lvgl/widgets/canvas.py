@@ -24,7 +24,7 @@ from ..defines import (
     literal,
 )
 from ..lv_validation import (
-    lv_angle_degrees,
+    lv_angle,
     lv_bool,
     lv_color,
     lv_image,
@@ -33,7 +33,7 @@ from ..lv_validation import (
     pixels,
     size,
 )
-from ..lvcode import LocalVariable, lv, lv_assign, lv_expr
+from ..lvcode import LocalVariable, lv, lv_assign
 from ..schemas import STYLE_PROPS, STYLE_REMAP, TEXT_SCHEMA, point_schema
 from ..types import LvType, ObjUpdateAction, WidgetType
 from . import Widget, get_widgets
@@ -70,18 +70,15 @@ class CanvasType(WidgetType):
         width = config[CONF_WIDTH]
         height = config[CONF_HEIGHT]
         use_alpha = "_ALPHA" if config[CONF_TRANSPARENT] else ""
-        buf_size = literal(
-            f"LV_CANVAS_BUF_SIZE_TRUE_COLOR{use_alpha}({width}, {height})"
+        lv.canvas_set_buffer(
+            w.obj,
+            lv.custom_mem_alloc(
+                literal(f"LV_CANVAS_BUF_SIZE_TRUE_COLOR{use_alpha}({width}, {height})")
+            ),
+            width,
+            height,
+            literal(f"LV_IMG_CF_TRUE_COLOR{use_alpha}"),
         )
-        with LocalVariable("buf", cg.void, lv_expr.custom_mem_alloc(buf_size)) as buf:
-            cg.add(cg.RawExpression(f"memset({buf}, 0, {buf_size});"))
-            lv.canvas_set_buffer(
-                w.obj,
-                buf,
-                width,
-                height,
-                literal(f"LV_IMG_CF_TRUE_COLOR{use_alpha}"),
-            )
 
 
 canvas_spec = CanvasType()
@@ -159,15 +156,18 @@ async def canvas_set_pixel(config, action_id, template_arg, args):
     )
 
 
-DRAW_SCHEMA = {
-    cv.GenerateID(CONF_ID): cv.use_id(lv_canvas_t),
-    cv.Required(CONF_X): pixels,
-    cv.Required(CONF_Y): pixels,
-}
-DRAW_OPA_SCHEMA = {
-    **DRAW_SCHEMA,
-    cv.Optional(CONF_OPA): opacity,
-}
+DRAW_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(CONF_ID): cv.use_id(lv_canvas_t),
+        cv.Required(CONF_X): pixels,
+        cv.Required(CONF_Y): pixels,
+    }
+)
+DRAW_OPA_SCHEMA = DRAW_SCHEMA.extend(
+    {
+        cv.Optional(CONF_OPA): opacity,
+    }
+)
 
 
 async def draw_to_code(config, dsc_type, props, do_draw, action_id, template_arg, args):
@@ -221,14 +221,12 @@ RECT_PROPS = {
 @automation.register_action(
     "lvgl.canvas.draw_rectangle",
     ObjUpdateAction,
-    cv.Schema(
+    DRAW_SCHEMA.extend(
         {
-            **DRAW_OPA_SCHEMA,
             cv.Required(CONF_WIDTH): cv.templatable(cv.int_),
             cv.Required(CONF_HEIGHT): cv.templatable(cv.int_),
-            **{cv.Optional(prop): STYLE_PROPS[prop] for prop in RECT_PROPS},
-        }
-    ),
+        },
+    ).extend({cv.Optional(prop): STYLE_PROPS[prop] for prop in RECT_PROPS}),
 )
 async def canvas_draw_rect(config, action_id, template_arg, args):
     width = await pixels.process(config[CONF_WIDTH])
@@ -260,14 +258,13 @@ TEXT_PROPS = {
 @automation.register_action(
     "lvgl.canvas.draw_text",
     ObjUpdateAction,
-    cv.Schema(
+    TEXT_SCHEMA.extend(DRAW_OPA_SCHEMA)
+    .extend(
         {
-            **TEXT_SCHEMA,
-            **DRAW_OPA_SCHEMA,
             cv.Required(CONF_MAX_WIDTH): cv.templatable(cv.int_),
-            **{cv.Optional(prop): STYLE_PROPS[f"text_{prop}"] for prop in TEXT_PROPS},
         },
-    ),
+    )
+    .extend({cv.Optional(prop): STYLE_PROPS[f"text_{prop}"] for prop in TEXT_PROPS}),
 )
 async def canvas_draw_text(config, action_id, template_arg, args):
     text = await lv_text.process(config[CONF_TEXT])
@@ -293,15 +290,13 @@ IMG_PROPS = {
 @automation.register_action(
     "lvgl.canvas.draw_image",
     ObjUpdateAction,
-    cv.Schema(
+    DRAW_OPA_SCHEMA.extend(
         {
-            **DRAW_OPA_SCHEMA,
             cv.Required(CONF_SRC): lv_image,
             cv.Optional(CONF_PIVOT_X, default=0): pixels,
             cv.Optional(CONF_PIVOT_Y, default=0): pixels,
-            **{cv.Optional(prop): validator for prop, validator in IMG_PROPS.items()},
-        }
-    ),
+        },
+    ).extend({cv.Optional(prop): validator for prop, validator in IMG_PROPS.items()}),
 )
 async def canvas_draw_image(config, action_id, template_arg, args):
     src = await lv_image.process(config[CONF_SRC])
@@ -338,9 +333,8 @@ LINE_PROPS = {
             cv.GenerateID(CONF_ID): cv.use_id(lv_canvas_t),
             cv.Optional(CONF_OPA): opacity,
             cv.Required(CONF_POINTS): cv.ensure_list(point_schema),
-            **{cv.Optional(prop): validator for prop, validator in LINE_PROPS.items()},
-        }
-    ),
+        },
+    ).extend({cv.Optional(prop): validator for prop, validator in LINE_PROPS.items()}),
 )
 async def canvas_draw_line(config, action_id, template_arg, args):
     points = [
@@ -366,9 +360,8 @@ async def canvas_draw_line(config, action_id, template_arg, args):
         {
             cv.GenerateID(CONF_ID): cv.use_id(lv_canvas_t),
             cv.Required(CONF_POINTS): cv.ensure_list(point_schema),
-            **{cv.Optional(prop): STYLE_PROPS[prop] for prop in RECT_PROPS},
         },
-    ),
+    ).extend({cv.Optional(prop): STYLE_PROPS[prop] for prop in RECT_PROPS}),
 )
 async def canvas_draw_polygon(config, action_id, template_arg, args):
     points = [
@@ -399,20 +392,18 @@ ARC_PROPS = {
 @automation.register_action(
     "lvgl.canvas.draw_arc",
     ObjUpdateAction,
-    cv.Schema(
+    DRAW_OPA_SCHEMA.extend(
         {
-            **DRAW_OPA_SCHEMA,
             cv.Required(CONF_RADIUS): pixels,
-            cv.Required(CONF_START_ANGLE): lv_angle_degrees,
-            cv.Required(CONF_END_ANGLE): lv_angle_degrees,
-            **{cv.Optional(prop): validator for prop, validator in ARC_PROPS.items()},
+            cv.Required(CONF_START_ANGLE): lv_angle,
+            cv.Required(CONF_END_ANGLE): lv_angle,
         }
-    ),
+    ).extend({cv.Optional(prop): validator for prop, validator in ARC_PROPS.items()}),
 )
 async def canvas_draw_arc(config, action_id, template_arg, args):
     radius = await size.process(config[CONF_RADIUS])
-    start_angle = await lv_angle_degrees.process(config[CONF_START_ANGLE])
-    end_angle = await lv_angle_degrees.process(config[CONF_END_ANGLE])
+    start_angle = await lv_angle.process(config[CONF_START_ANGLE])
+    end_angle = await lv_angle.process(config[CONF_END_ANGLE])
 
     async def do_draw_arc(w: Widget, x, y, dsc_addr):
         lv.canvas_draw_arc(w.obj, x, y, radius, start_angle, end_angle, dsc_addr)

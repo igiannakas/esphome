@@ -40,15 +40,11 @@ const EntityBase *MQTTNumberComponent::get_entity() const { return this->number_
 void MQTTNumberComponent::send_discovery(JsonObject root, mqtt::SendDiscoveryConfig &config) {
   const auto &traits = number_->traits;
   // https://www.home-assistant.io/integrations/number.mqtt/
-  // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) false positive with ArduinoJson
   root[MQTT_MIN] = traits.get_min_value();
   root[MQTT_MAX] = traits.get_max_value();
   root[MQTT_STEP] = traits.get_step();
-  // NOLINTBEGIN(clang-analyzer-cplusplus.NewDeleteLeaks) false positive with ArduinoJson
-  const auto unit_of_measurement = this->number_->traits.get_unit_of_measurement_ref();
-  if (!unit_of_measurement.empty()) {
-    root[MQTT_UNIT_OF_MEASUREMENT] = unit_of_measurement;
-  }
+  if (!this->number_->traits.get_unit_of_measurement().empty())
+    root[MQTT_UNIT_OF_MEASUREMENT] = this->number_->traits.get_unit_of_measurement();
   switch (this->number_->traits.get_mode()) {
     case NUMBER_MODE_AUTO:
       break;
@@ -59,11 +55,8 @@ void MQTTNumberComponent::send_discovery(JsonObject root, mqtt::SendDiscoveryCon
       root[MQTT_MODE] = "slider";
       break;
   }
-  const auto device_class = this->number_->traits.get_device_class_ref();
-  if (!device_class.empty()) {
-    root[MQTT_DEVICE_CLASS] = device_class;
-  }
-  // NOLINTEND(clang-analyzer-cplusplus.NewDeleteLeaks)
+  if (!this->number_->traits.get_device_class().empty())
+    root[MQTT_DEVICE_CLASS] = this->number_->traits.get_device_class();
 
   config.command_topic = true;
 }

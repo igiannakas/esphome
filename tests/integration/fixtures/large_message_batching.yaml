@@ -134,3 +134,4 @@ switch:
     name: "Test Switch"
     id: test_switch
     optimistic: true
+

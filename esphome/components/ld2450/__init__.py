@@ -3,7 +3,6 @@ from esphome.components import uart
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_THROTTLE
 
-AUTO_LOAD = ["ld24xx"]
 DEPENDENCIES = ["uart"]
 CODEOWNERS = ["@hareeshmu"]
 MULTI_CONF = True
@@ -17,8 +16,9 @@ CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(LD2450Component),
-            cv.Optional(CONF_THROTTLE): cv.invalid(
-                f"{CONF_THROTTLE} has been removed; use per-sensor filters, instead"
+            cv.Optional(CONF_THROTTLE, default="1000ms"): cv.All(
+                cv.positive_time_period_milliseconds,
+                cv.Range(min=cv.TimePeriod(milliseconds=1)),
             ),
         }
     )
@@ -45,3 +45,4 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
+    cg.add(var.set_throttle(config[CONF_THROTTLE]))

@@ -20,13 +20,13 @@ MQTTTimeComponent::MQTTTimeComponent(TimeEntity *time) : time_(time) {}
 void MQTTTimeComponent::setup() {
   this->subscribe_json(this->get_command_topic_(), [this](const std::string &topic, JsonObject root) {
     auto call = this->time_->make_call();
-    if (root["hour"].is<uint8_t>()) {
+    if (root.containsKey("hour")) {
       call.set_hour(root["hour"]);
     }
-    if (root["minute"].is<uint8_t>()) {
+    if (root.containsKey("minute")) {
       call.set_minute(root["minute"]);
     }
-    if (root["second"].is<uint8_t>()) {
+    if (root.containsKey("second")) {
       call.set_second(root["second"]);
     }
     call.perform();
@@ -55,7 +55,6 @@ bool MQTTTimeComponent::send_initial_state() {
 }
 bool MQTTTimeComponent::publish_state(uint8_t hour, uint8_t minute, uint8_t second) {
   return this->publish_json(this->get_state_topic_(), [hour, minute, second](JsonObject root) {
-    // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) false positive with ArduinoJson
     root["hour"] = hour;
     root["minute"] = minute;
     root["second"] = second;

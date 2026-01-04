@@ -11,7 +11,7 @@
 namespace esphome {
 namespace mqtt {
 
-class MQTTJSONLightComponent : public mqtt::MQTTComponent, public light::LightRemoteValuesListener {
+class MQTTJSONLightComponent : public mqtt::MQTTComponent {
  public:
   explicit MQTTJSONLightComponent(light::LightState *state);
 
@@ -24,9 +24,6 @@ class MQTTJSONLightComponent : public mqtt::MQTTComponent, public light::LightRe
   void send_discovery(JsonObject root, mqtt::SendDiscoveryConfig &config) override;
 
   bool send_initial_state() override;
-
-  // LightRemoteValuesListener interface
-  void on_light_remote_values_update() override;
 
  protected:
   std::string component_type() const override;

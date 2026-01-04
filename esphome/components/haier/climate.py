@@ -330,7 +330,8 @@ HAIER_HON_BASE_ACTION_SCHEMA = automation.maybe_simple_id(
 )
 async def display_action_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, paren)
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var
 
 
 @automation.register_action(
@@ -341,7 +342,8 @@ async def display_action_to_code(config, action_id, template_arg, args):
 )
 async def beeper_action_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, paren)
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var
 
 
 # Start self cleaning or steri-cleaning action action
@@ -357,7 +359,8 @@ async def beeper_action_to_code(config, action_id, template_arg, args):
 )
 async def start_cleaning_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, paren)
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var
 
 
 # Set vertical airflow direction action
@@ -414,7 +417,8 @@ async def haier_set_horizontal_airflow_to_code(config, action_id, template_arg, 
 )
 async def health_action_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, paren)
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var
 
 
 @automation.register_action(
@@ -428,7 +432,8 @@ async def health_action_to_code(config, action_id, template_arg, args):
 )
 async def power_action_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
-    return cg.new_Pvariable(action_id, template_arg, paren)
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var
 
 
 def _final_validate(config):

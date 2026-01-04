@@ -8,7 +8,8 @@
 #ifdef USE_ESP32
 #include <esp_gattc_api.h>
 
-namespace esphome::ble_client {
+namespace esphome {
+namespace ble_client {
 
 namespace espbt = esphome::esp32_ble_tracker;
 
@@ -28,5 +29,6 @@ class BLEClientRSSISensor : public sensor::Sensor, public PollingComponent, publ
   bool should_update_{false};
 };
 
-}  // namespace esphome::ble_client
+}  // namespace ble_client
+}  // namespace esphome
 #endif

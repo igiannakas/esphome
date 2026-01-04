@@ -21,7 +21,7 @@ void MQTTSelectComponent::setup() {
     call.set_option(state);
     call.perform();
   });
-  this->select_->add_on_state_callback([this](size_t index) { this->publish_state(this->select_->option_at(index)); });
+  this->select_->add_on_state_callback([this](const std::string &state, size_t index) { this->publish_state(state); });
 }
 
 void MQTTSelectComponent::dump_config() {
@@ -35,8 +35,7 @@ const EntityBase *MQTTSelectComponent::get_entity() const { return this->select_
 void MQTTSelectComponent::send_discovery(JsonObject root, mqtt::SendDiscoveryConfig &config) {
   const auto &traits = select_->traits;
   // https://www.home-assistant.io/integrations/select.mqtt/
-  // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) false positive with ArduinoJson
-  JsonArray options = root[MQTT_OPTIONS].to<JsonArray>();
+  JsonArray options = root.createNestedArray(MQTT_OPTIONS);
   for (const auto &option : traits.get_options())
     options.add(option);
 
@@ -44,7 +43,7 @@ void MQTTSelectComponent::send_discovery(JsonObject root, mqtt::SendDiscoveryCon
 }
 bool MQTTSelectComponent::send_initial_state() {
   if (this->select_->has_state()) {
-    return this->publish_state(this->select_->current_option());
+    return this->publish_state(this->select_->state);
   } else {
     return true;
   }

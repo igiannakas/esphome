@@ -1,5 +1,4 @@
 #include "xiaomi_cgg1.h"
-#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
 #ifdef USE_ESP32
@@ -9,14 +8,11 @@ namespace xiaomi_cgg1 {
 
 static const char *const TAG = "xiaomi_cgg1";
 
-static constexpr size_t CGG1_BINDKEY_SIZE = 16;
-
 void XiaomiCGG1::dump_config() {
-  char bindkey_hex[format_hex_pretty_size(CGG1_BINDKEY_SIZE)];
   ESP_LOGCONFIG(TAG,
                 "Xiaomi CGG1\n"
                 "  Bindkey: %s",
-                format_hex_pretty_to(bindkey_hex, this->bindkey_, CGG1_BINDKEY_SIZE, '.'));
+                format_hex_pretty(this->bindkey_, 16).c_str());
   LOG_SENSOR("  ", "Temperature", this->temperature_);
   LOG_SENSOR("  ", "Humidity", this->humidity_);
   LOG_SENSOR("  ", "Battery Level", this->battery_level_);

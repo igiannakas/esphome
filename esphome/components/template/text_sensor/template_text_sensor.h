@@ -2,14 +2,14 @@
 
 #include "esphome/core/component.h"
 #include "esphome/core/automation.h"
-#include "esphome/core/template_lambda.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
-class TemplateTextSensor final : public text_sensor::TextSensor, public PollingComponent {
+class TemplateTextSensor : public text_sensor::TextSensor, public PollingComponent {
  public:
-  template<typename F> void set_template(F &&f) { this->f_.set(std::forward<F>(f)); }
+  void set_template(std::function<optional<std::string>()> &&f);
 
   void update() override;
 
@@ -18,7 +18,8 @@ class TemplateTextSensor final : public text_sensor::TextSensor, public PollingC
   void dump_config() override;
 
  protected:
-  TemplateLambda<std::string> f_{};
+  optional<std::function<optional<std::string>()>> f_{};
 };
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome

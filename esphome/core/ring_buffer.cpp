@@ -78,13 +78,9 @@ size_t RingBuffer::write(const void *data, size_t len) {
   return this->write_without_replacement(data, len, 0);
 }
 
-size_t RingBuffer::write_without_replacement(const void *data, size_t len, TickType_t ticks_to_wait,
-                                             bool write_partial) {
+size_t RingBuffer::write_without_replacement(const void *data, size_t len, TickType_t ticks_to_wait) {
   if (!xRingbufferSend(this->handle_, data, len, ticks_to_wait)) {
-    if (!write_partial) {
-      return 0;  // Not enough space available and not allowed to write partial data
-    }
-    // Couldn't fit all the data, write what will fit
+    // Couldn't fit all the data, so only write what will fit
     size_t free = std::min(this->free(), len);
     if (xRingbufferSend(this->handle_, data, free, 0)) {
       return free;

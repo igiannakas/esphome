@@ -8,7 +8,8 @@
 #ifdef USE_ESP32
 #include <esp_gattc_api.h>
 
-namespace esphome::ble_client {
+namespace esphome {
+namespace ble_client {
 
 namespace espbt = esphome::esp32_ble_tracker;
 
@@ -23,5 +24,6 @@ class BLEClientSwitch : public switch_::Switch, public Component, public BLEClie
   void write_state(bool state) override;
 };
 
-}  // namespace esphome::ble_client
+}  // namespace ble_client
+}  // namespace esphome
 #endif

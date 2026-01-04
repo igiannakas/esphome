@@ -4,12 +4,16 @@
 #include "esphome/core/entity_base.h"
 #include "esphome/core/helpers.h"
 
-namespace esphome::button {
+namespace esphome {
+namespace button {
 
-class Button;
-void log_button(const char *tag, const char *prefix, const char *type, Button *obj);
-
-#define LOG_BUTTON(prefix, type, obj) log_button(TAG, prefix, LOG_STR_LITERAL(type), obj)
+#define LOG_BUTTON(prefix, type, obj) \
+  if ((obj) != nullptr) { \
+    ESP_LOGCONFIG(TAG, "%s%s '%s'", prefix, LOG_STR_LITERAL(type), (obj)->get_name().c_str()); \
+    if (!(obj)->get_icon().empty()) { \
+      ESP_LOGCONFIG(TAG, "%s  Icon: '%s'", prefix, (obj)->get_icon().c_str()); \
+    } \
+  }
 
 #define SUB_BUTTON(name) \
  protected: \
@@ -41,7 +45,8 @@ class Button : public EntityBase, public EntityBase_DeviceClass {
    */
   virtual void press_action() = 0;
 
-  LazyCallbackManager<void()> press_callback_{};
+  CallbackManager<void()> press_callback_{};
 };
 
-}  // namespace esphome::button
+}  // namespace button
+}  // namespace esphome

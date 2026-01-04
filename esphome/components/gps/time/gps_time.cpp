@@ -1,3 +1,5 @@
+#ifdef USE_ARDUINO
+
 #include "gps_time.h"
 #include "esphome/core/log.h"
 
@@ -7,10 +9,12 @@ namespace gps {
 static const char *const TAG = "gps.time";
 
 void GPSTime::from_tiny_gps_(TinyGPSPlus &tiny_gps) {
-  if (!tiny_gps.time.isValid() || !tiny_gps.date.isValid() || !tiny_gps.time.isUpdated() ||
-      !tiny_gps.date.isUpdated() || tiny_gps.date.year() < 2025) {
+  if (!tiny_gps.time.isValid() || !tiny_gps.date.isValid())
     return;
-  }
+  if (!tiny_gps.time.isUpdated() || !tiny_gps.date.isUpdated())
+    return;
+  if (tiny_gps.date.year() < 2019)
+    return;
 
   ESPTime val{};
   val.year = tiny_gps.date.year();
@@ -30,3 +34,5 @@ void GPSTime::from_tiny_gps_(TinyGPSPlus &tiny_gps) {
 
 }  // namespace gps
 }  // namespace esphome
+
+#endif  // USE_ARDUINO

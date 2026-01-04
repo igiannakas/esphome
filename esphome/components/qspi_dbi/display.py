@@ -73,8 +73,9 @@ def map_sequence(value):
 
 def _validate(config):
     chip = DriverChip.chips[config[CONF_MODEL]]
-    if not chip.initsequence and CONF_INIT_SEQUENCE not in config:
-        raise cv.Invalid(f"{chip.name} model requires init_sequence")
+    if not chip.initsequence:
+        if CONF_INIT_SEQUENCE not in config:
+            raise cv.Invalid(f"{chip.name} model requires init_sequence")
     return config
 
 
@@ -154,7 +155,7 @@ CONFIG_SCHEMA = cv.All(
         upper=True,
         key=CONF_MODEL,
     ),
-    cv.only_on_esp32,
+    cv.only_with_esp_idf,
 )
 
 

@@ -4,8 +4,9 @@ binary_sensor:
     lambda: |-
       if (millis() > 10000) {
         return true;
+      } else {
+        return false;
       }
-      return false;
 
 switch:
   - platform: template

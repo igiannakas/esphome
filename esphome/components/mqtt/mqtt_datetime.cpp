@@ -20,22 +20,22 @@ MQTTDateTimeComponent::MQTTDateTimeComponent(DateTimeEntity *datetime) : datetim
 void MQTTDateTimeComponent::setup() {
   this->subscribe_json(this->get_command_topic_(), [this](const std::string &topic, JsonObject root) {
     auto call = this->datetime_->make_call();
-    if (root["year"].is<uint16_t>()) {
+    if (root.containsKey("year")) {
       call.set_year(root["year"]);
     }
-    if (root["month"].is<uint8_t>()) {
+    if (root.containsKey("month")) {
       call.set_month(root["month"]);
     }
-    if (root["day"].is<uint8_t>()) {
+    if (root.containsKey("day")) {
       call.set_day(root["day"]);
     }
-    if (root["hour"].is<uint8_t>()) {
+    if (root.containsKey("hour")) {
       call.set_hour(root["hour"]);
     }
-    if (root["minute"].is<uint8_t>()) {
+    if (root.containsKey("minute")) {
       call.set_minute(root["minute"]);
     }
-    if (root["second"].is<uint8_t>()) {
+    if (root.containsKey("second")) {
       call.set_second(root["second"]);
     }
     call.perform();
@@ -68,7 +68,6 @@ bool MQTTDateTimeComponent::send_initial_state() {
 bool MQTTDateTimeComponent::publish_state(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute,
                                           uint8_t second) {
   return this->publish_json(this->get_state_topic_(), [year, month, day, hour, minute, second](JsonObject root) {
-    // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) false positive with ArduinoJson
     root["year"] = year;
     root["month"] = month;
     root["day"] = day;

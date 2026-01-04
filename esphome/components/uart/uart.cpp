@@ -5,7 +5,8 @@
 #include "esphome/core/log.h"
 #include <cinttypes>
 
-namespace esphome::uart {
+namespace esphome {
+namespace uart {
 
 static const char *const TAG = "uart";
 
@@ -42,4 +43,5 @@ const LogString *parity_to_str(UARTParityOptions parity) {
   }
 }
 
-}  // namespace esphome::uart
+}  // namespace uart
+}  // namespace esphome

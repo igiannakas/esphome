@@ -10,13 +10,14 @@
 
 #include "datetime_base.h"
 
-namespace esphome::datetime {
+namespace esphome {
+namespace datetime {
 
 #define LOG_DATETIME_TIME(prefix, type, obj) \
   if ((obj) != nullptr) { \
     ESP_LOGCONFIG(TAG, "%s%s '%s'", prefix, LOG_STR_LITERAL(type), (obj)->get_name().c_str()); \
-    if (!(obj)->get_icon_ref().empty()) { \
-      ESP_LOGCONFIG(TAG, "%s  Icon: '%s'", prefix, (obj)->get_icon_ref().c_str()); \
+    if (!(obj)->get_icon().empty()) { \
+      ESP_LOGCONFIG(TAG, "%s  Icon: '%s'", prefix, (obj)->get_icon().c_str()); \
     } \
   }
 
@@ -102,7 +103,7 @@ template<typename... Ts> class TimeSetAction : public Action<Ts...>, public Pare
  public:
   TEMPLATABLE_VALUE(ESPTime, time)
 
-  void play(const Ts &...x) override {
+  void play(Ts... x) override {
     auto call = this->parent_->make_call();
 
     if (this->time_.has_value()) {
@@ -124,6 +125,7 @@ class OnTimeTrigger : public Trigger<>, public Component, public Parented<TimeEn
 };
 #endif
 
-}  // namespace esphome::datetime
+}  // namespace datetime
+}  // namespace esphome
 
 #endif  // USE_DATETIME_TIME

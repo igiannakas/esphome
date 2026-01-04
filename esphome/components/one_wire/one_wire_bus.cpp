@@ -49,8 +49,7 @@ void OneWireBus::search() {
       break;
     auto *address8 = reinterpret_cast<uint8_t *>(&address);
     if (crc8(address8, 7) != address8[7]) {
-      char hex_buf[17];
-      ESP_LOGW(TAG, "Dallas device 0x%s has invalid CRC.", format_hex_to(hex_buf, address));
+      ESP_LOGW(TAG, "Dallas device 0x%s has invalid CRC.", format_hex(address).c_str());
     } else {
       this->devices_.push_back(address);
     }
@@ -83,9 +82,8 @@ void OneWireBus::dump_devices_(const char *tag) {
     ESP_LOGW(tag, "  Found no devices!");
   } else {
     ESP_LOGCONFIG(tag, "  Found devices:");
-    char hex_buf[17];  // uint64_t = 16 hex chars + null
     for (auto &address : this->devices_) {
-      ESP_LOGCONFIG(tag, "    0x%s (%s)", format_hex_to(hex_buf, address), LOG_STR_ARG(get_model_str(address & 0xff)));
+      ESP_LOGCONFIG(tag, "    0x%s (%s)", format_hex(address).c_str(), LOG_STR_ARG(get_model_str(address & 0xff)));
     }
   }
 }

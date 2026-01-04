@@ -10,6 +10,7 @@ namespace ds1307 {
 static const char *const TAG = "ds1307";
 
 void DS1307Component::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup");
   if (!this->read_rtc_()) {
     this->mark_failed();
   }
@@ -23,7 +24,7 @@ void DS1307Component::dump_config() {
   if (this->is_failed()) {
     ESP_LOGE(TAG, ESP_LOG_MSG_COMM_FAIL);
   }
-  RealTimeClock::dump_config();
+  ESP_LOGCONFIG(TAG, "  Timezone: '%s'", this->timezone_.c_str());
 }
 
 float DS1307Component::get_setup_priority() const { return setup_priority::DATA; }

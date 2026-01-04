@@ -1,9 +1,10 @@
 #include "spi.h"
 #include <vector>
 
-namespace esphome::spi {
+namespace esphome {
+namespace spi {
 
-#ifdef USE_ESP32
+#ifdef USE_ESP_IDF
 static const char *const TAG = "spi-esp-idf";
 static const size_t MAX_TRANSFER_SIZE = 4092;  // dictated by ESP-IDF API.
 
@@ -265,5 +266,6 @@ SPIBus *SPIComponent::get_bus(SPIInterface interface, GPIOPin *clk, GPIOPin *sdo
   return new SPIBusHw(clk, sdo, sdi, interface, data_pins);
 }
 
-#endif  // USE_ESP32
-}  // namespace esphome::spi
+#endif
+}  // namespace spi
+}  // namespace esphome

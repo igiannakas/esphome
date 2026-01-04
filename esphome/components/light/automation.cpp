@@ -1,7 +1,8 @@
 #include "automation.h"
 #include "esphome/core/log.h"
 
-namespace esphome::light {
+namespace esphome {
+namespace light {
 
 static const char *const TAG = "light.automation";
 
@@ -10,4 +11,5 @@ void addressableset_warn_about_scale(const char *field) {
            field);
 }
 
-}  // namespace esphome::light
+}  // namespace light
+}  // namespace esphome

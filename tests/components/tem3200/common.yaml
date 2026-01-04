@@ -1,7 +1,13 @@
+i2c:
+  id: i2c_bus
+  scl: ${scl_pin}
+  sda: ${sda_pin}
+  frequency: 200kHz
+
 sensor:
   - platform: tem3200
-    i2c_id: i2c_bus
     update_interval: 1s
+    i2c_id: i2c_bus
 
     temperature:
       name: water temperature

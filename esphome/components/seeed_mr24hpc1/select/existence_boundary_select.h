@@ -11,7 +11,7 @@ class ExistenceBoundarySelect : public select::Select, public Parented<MR24HPC1C
   ExistenceBoundarySelect() = default;
 
  protected:
-  void control(size_t index) override;
+  void control(const std::string &value) override;
 };
 
 }  // namespace seeed_mr24hpc1

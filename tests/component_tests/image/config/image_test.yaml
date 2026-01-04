@@ -5,12 +5,10 @@ esp32:
   board: esp32s3box
 
 image:
-  defaults:
-    type: rgb565
+  - file: image.png
     byte_order: little_endian
-  images:
-    - file: image.png
-      id: cat_img
+    id: cat_img
+    type: rgb565
 
 spi:
   mosi_pin: 6

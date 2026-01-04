@@ -6,8 +6,7 @@ udp:
   addresses: ["239.0.60.53"]
 
 time:
-  - platform: host
-    id: host_time
+  platform: host
 
 syslog:
   port: 514

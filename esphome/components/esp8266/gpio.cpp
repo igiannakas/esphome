@@ -3,18 +3,17 @@
 #include "gpio.h"
 #include "esphome/core/log.h"
 
-namespace esphome::esp8266 {
+namespace esphome {
+namespace esp8266 {
 
 static const char *const TAG = "esp8266";
 
 static int flags_to_mode(gpio::Flags flags, uint8_t pin) {
-  if (flags == gpio::FLAG_OUTPUT || flags == (gpio::FLAG_OUTPUT | gpio::FLAG_INPUT)) {
-    return OUTPUT;
-  }
-  if (flags == gpio::FLAG_INPUT) {
+  if (flags == gpio::FLAG_INPUT) {  // NOLINT(bugprone-branch-clone)
     return INPUT;
-  }
-  if (flags == (gpio::FLAG_INPUT | gpio::FLAG_PULLUP)) {
+  } else if (flags == gpio::FLAG_OUTPUT) {
+    return OUTPUT;
+  } else if (flags == (gpio::FLAG_INPUT | gpio::FLAG_PULLUP)) {
     if (pin == 16) {
       // GPIO16 doesn't have a pullup, so pinMode would fail.
       // However, sometimes this method is called with pullup mode anyway
@@ -23,14 +22,13 @@ static int flags_to_mode(gpio::Flags flags, uint8_t pin) {
       return INPUT;
     }
     return INPUT_PULLUP;
-  }
-  if (flags == (gpio::FLAG_INPUT | gpio::FLAG_PULLDOWN)) {
+  } else if (flags == (gpio::FLAG_INPUT | gpio::FLAG_PULLDOWN)) {
     return INPUT_PULLDOWN_16;
-  }
-  if (flags == (gpio::FLAG_OUTPUT | gpio::FLAG_OPEN_DRAIN)) {
+  } else if (flags == (gpio::FLAG_OUTPUT | gpio::FLAG_OPEN_DRAIN)) {
     return OUTPUT_OPEN_DRAIN;
+  } else {
+    return 0;
   }
-  return INPUT;
 }
 
 struct ISRPinArg {
@@ -98,8 +96,10 @@ void ESP8266GPIOPin::pin_mode(gpio::Flags flags) {
   pinMode(pin_, flags_to_mode(flags, pin_));  // NOLINT
 }
 
-size_t ESP8266GPIOPin::dump_summary(char *buffer, size_t len) const {
-  return snprintf(buffer, len, "GPIO%u", this->pin_);
+std::string ESP8266GPIOPin::dump_summary() const {
+  char buffer[32];
+  snprintf(buffer, sizeof(buffer), "GPIO%u", pin_);
+  return buffer;
 }
 
 bool ESP8266GPIOPin::digital_read() {
@@ -110,11 +110,9 @@ void ESP8266GPIOPin::digital_write(bool value) {
 }
 void ESP8266GPIOPin::detach_interrupt() const { detachInterrupt(pin_); }
 
-}  // namespace esphome::esp8266
+}  // namespace esp8266
 
-namespace esphome {
-
-using esp8266::ISRPinArg;
+using namespace esp8266;
 
 bool IRAM_ATTR ISRInternalGPIOPin::digital_read() {
   auto *arg = reinterpret_cast<ISRPinArg *>(this->arg_);

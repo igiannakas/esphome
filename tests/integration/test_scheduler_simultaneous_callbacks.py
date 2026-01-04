@@ -98,12 +98,12 @@ async def test_scheduler_simultaneous_callbacks(
         )
 
         # Call the service to start the test
-        await client.execute_service(run_test_service, {})
+        client.execute_service(run_test_service, {})
 
         # Wait for test to complete
         try:
             await asyncio.wait_for(test_complete_future, timeout=30.0)
-        except TimeoutError:
+        except asyncio.TimeoutError:
             pytest.fail(f"Simultaneous callbacks test timed out. Stats: {test_stats}")
 
         # Check for any errors

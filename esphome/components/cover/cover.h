@@ -3,12 +3,11 @@
 #include "esphome/core/component.h"
 #include "esphome/core/entity_base.h"
 #include "esphome/core/helpers.h"
-#include "esphome/core/log.h"
 #include "esphome/core/preferences.h"
-
 #include "cover_traits.h"
 
-namespace esphome::cover {
+namespace esphome {
+namespace cover {
 
 const extern float COVER_OPEN;
 const extern float COVER_CLOSED;
@@ -20,8 +19,8 @@ const extern float COVER_CLOSED;
     if (traits_.get_is_assumed_state()) { \
       ESP_LOGCONFIG(TAG, "%s  Assumed State: YES", prefix); \
     } \
-    if (!(obj)->get_device_class_ref().empty()) { \
-      ESP_LOGCONFIG(TAG, "%s  Device Class: '%s'", prefix, (obj)->get_device_class_ref().c_str()); \
+    if (!(obj)->get_device_class().empty()) { \
+      ESP_LOGCONFIG(TAG, "%s  Device Class: '%s'", prefix, (obj)->get_device_class().c_str()); \
     } \
   }
 
@@ -87,7 +86,7 @@ enum CoverOperation : uint8_t {
   COVER_OPERATION_CLOSING,
 };
 
-const LogString *cover_operation_to_str(CoverOperation op);
+const char *cover_operation_to_str(CoverOperation op);
 
 /** Base class for all cover devices.
  *
@@ -126,6 +125,25 @@ class Cover : public EntityBase, public EntityBase_DeviceClass {
 
   /// Construct a new cover call used to control the cover.
   CoverCall make_call();
+  /** Open the cover.
+   *
+   * This is a legacy method and may be removed later, please use `.make_call()` instead.
+   */
+  ESPDEPRECATED("open() is deprecated, use make_call().set_command_open().perform() instead.", "2021.9")
+  void open();
+  /** Close the cover.
+   *
+   * This is a legacy method and may be removed later, please use `.make_call()` instead.
+   */
+  ESPDEPRECATED("close() is deprecated, use make_call().set_command_close().perform() instead.", "2021.9")
+  void close();
+  /** Stop the cover.
+   *
+   * This is a legacy method and may be removed later, please use `.make_call()` instead.
+   * As per solution from issue #2885 the call should include perform()
+   */
+  ESPDEPRECATED("stop() is deprecated, use make_call().set_command_stop().perform() instead.", "2021.9")
+  void stop();
 
   void add_on_state_callback(std::function<void()> &&f);
 
@@ -152,9 +170,10 @@ class Cover : public EntityBase, public EntityBase_DeviceClass {
 
   optional<CoverRestoreState> restore_state_();
 
-  LazyCallbackManager<void()> state_callback_{};
+  CallbackManager<void()> state_callback_{};
 
   ESPPreferenceObject rtc_;
 };
 
-}  // namespace esphome::cover
+}  // namespace cover
+}  // namespace esphome

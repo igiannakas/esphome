@@ -2,10 +2,12 @@
 
 #include "automation.h"
 
-namespace esphome::ble_client {
+namespace esphome {
+namespace ble_client {
 
 const char *const Automation::TAG = "ble_client.automation";
 
-}  // namespace esphome::ble_client
+}  // namespace ble_client
+}  // namespace esphome
 
 #endif

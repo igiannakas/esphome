@@ -1,7 +1,8 @@
 #include "template_cover.h"
 #include "esphome/core/log.h"
 
-namespace esphome::template_ {
+namespace esphome {
+namespace template_ {
 
 using namespace esphome::cover;
 
@@ -15,6 +16,7 @@ TemplateCover::TemplateCover()
       position_trigger_(new Trigger<float>()),
       tilt_trigger_(new Trigger<float>()) {}
 void TemplateCover::setup() {
+  ESP_LOGCONFIG(TAG, "Running setup for '%s'", this->name_.c_str());
   switch (this->restore_mode_) {
     case COVER_NO_RESTORE:
       break;
@@ -32,27 +34,28 @@ void TemplateCover::setup() {
       break;
     }
   }
-  if (!this->state_f_.has_value() && !this->tilt_f_.has_value())
-    this->disable_loop();
 }
 void TemplateCover::loop() {
   bool changed = false;
 
-  auto s = this->state_f_();
-  if (s.has_value()) {
-    auto pos = clamp(*s, 0.0f, 1.0f);
-    if (pos != this->position) {
-      this->position = pos;
-      changed = true;
+  if (this->state_f_.has_value()) {
+    auto s = (*this->state_f_)();
+    if (s.has_value()) {
+      auto pos = clamp(*s, 0.0f, 1.0f);
+      if (pos != this->position) {
+        this->position = pos;
+        changed = true;
+      }
     }
   }
-
-  auto tilt = this->tilt_f_();
-  if (tilt.has_value()) {
-    auto tilt_val = clamp(*tilt, 0.0f, 1.0f);
-    if (tilt_val != this->tilt) {
-      this->tilt = tilt_val;
-      changed = true;
+  if (this->tilt_f_.has_value()) {
+    auto s = (*this->tilt_f_)();
+    if (s.has_value()) {
+      auto tilt = clamp(*s, 0.0f, 1.0f);
+      if (tilt != this->tilt) {
+        this->tilt = tilt;
+        changed = true;
+      }
     }
   }
 
@@ -61,6 +64,7 @@ void TemplateCover::loop() {
 }
 void TemplateCover::set_optimistic(bool optimistic) { this->optimistic_ = optimistic; }
 void TemplateCover::set_assumed_state(bool assumed_state) { this->assumed_state_ = assumed_state; }
+void TemplateCover::set_state_lambda(std::function<optional<float>()> &&f) { this->state_f_ = f; }
 float TemplateCover::get_setup_priority() const { return setup_priority::HARDWARE; }
 Trigger<> *TemplateCover::get_open_trigger() const { return this->open_trigger_; }
 Trigger<> *TemplateCover::get_close_trigger() const { return this->close_trigger_; }
@@ -121,6 +125,7 @@ CoverTraits TemplateCover::get_traits() {
 }
 Trigger<float> *TemplateCover::get_position_trigger() const { return this->position_trigger_; }
 Trigger<float> *TemplateCover::get_tilt_trigger() const { return this->tilt_trigger_; }
+void TemplateCover::set_tilt_lambda(std::function<optional<float>()> &&tilt_f) { this->tilt_f_ = tilt_f; }
 void TemplateCover::set_has_stop(bool has_stop) { this->has_stop_ = has_stop; }
 void TemplateCover::set_has_toggle(bool has_toggle) { this->has_toggle_ = has_toggle; }
 void TemplateCover::set_has_position(bool has_position) { this->has_position_ = has_position; }
@@ -132,4 +137,5 @@ void TemplateCover::stop_prev_trigger_() {
   }
 }
 
-}  // namespace esphome::template_
+}  // namespace template_
+}  // namespace esphome

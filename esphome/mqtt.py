@@ -1,4 +1,3 @@
-import contextlib
 from datetime import datetime
 import hashlib
 import json
@@ -30,14 +29,13 @@ from esphome.const import (
 from esphome.core import CORE, EsphomeError
 from esphome.helpers import get_int_env, get_str_env
 from esphome.log import AnsiFore, color
-from esphome.types import ConfigType
 from esphome.util import safe_print
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def config_from_env():
-    return {
+    config = {
         CONF_MQTT: {
             CONF_USERNAME: get_str_env("ESPHOME_DASHBOARD_MQTT_USERNAME"),
             CONF_PASSWORD: get_str_env("ESPHOME_DASHBOARD_MQTT_PASSWORD"),
@@ -45,6 +43,7 @@ def config_from_env():
             CONF_PORT: get_int_env("ESPHOME_DASHBOARD_MQTT_PORT", 1883),
         },
     }
+    return config
 
 
 def initialize(
@@ -53,8 +52,10 @@ def initialize(
     client = prepare(
         config, subscriptions, on_message, on_connect, username, password, client_id
     )
-    with contextlib.suppress(KeyboardInterrupt):
+    try:
         client.loop_forever()
+    except KeyboardInterrupt:
+        pass
     return 0
 
 
@@ -121,7 +122,7 @@ def prepare(
                 cert_file.flush()
                 key_file.write(config[CONF_MQTT].get(CONF_CLIENT_CERTIFICATE_KEY))
                 key_file.flush()
-                context.load_cert_chain(cert_file.name, key_file.name)
+                context.load_cert_chain(cert_file, key_file)
         client.tls_set_context(context)
 
     try:
@@ -155,12 +156,8 @@ def show_discover(config, username=None, password=None, client_id=None):
 
 
 def get_esphome_device_ip(
-    config: ConfigType,
-    username: str | None = None,
-    password: str | None = None,
-    client_id: str | None = None,
-    timeout: int | float = 25,
-) -> list[str]:
+    config, username=None, password=None, client_id=None, timeout=25
+):
     if CONF_MQTT not in config:
         raise EsphomeError(
             "Cannot discover IP via MQTT as the config does not include the mqtt: "
@@ -170,10 +167,6 @@ def get_esphome_device_ip(
         raise EsphomeError(
             "Cannot discover IP via MQTT as the config does not include the device name: "
             "component"
-        )
-    if not config[CONF_MQTT].get(CONF_BROKER):
-        raise EsphomeError(
-            "Cannot discover IP via MQTT as the broker is not configured"
         )
 
     dev_name = config[CONF_ESPHOME][CONF_NAME]
@@ -192,7 +185,7 @@ def get_esphome_device_ip(
 
             data = json.loads(payload)
             if "name" not in data or data["name"] != dev_name:
-                _LOGGER.warning("Wrong device answer")
+                _LOGGER.Warn("Wrong device answer")
                 return
 
             dev_ip = []
