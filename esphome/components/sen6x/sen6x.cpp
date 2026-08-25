@@ -15,6 +15,15 @@ static constexpr uint32_t POLL_INTERVAL = 50;   // 50 ms between poll attempts
 // Numeric timeout IDs. Each chain is sequential, so only one timeout per ID is active at a time.
 static constexpr uint32_t TIMEOUT_POLL = 1;
 static constexpr uint32_t TIMEOUT_SETUP_STEP = 2;
+static constexpr uint32_t TIMEOUT_STARTUP = 3;
+
+// Post-command wait times from the datasheet: start execution (4.8.1), stop execution (4.8.2),
+// fan cleaning (4.8.22), SHT heater (4.8.23), CO2 conditioning after start on SEN63C/SEN69C (4.8.1)
+static constexpr uint32_t START_MEASUREMENT_DELAY = 50;
+static constexpr uint32_t STOP_MEASUREMENT_DELAY = 1400;
+static constexpr uint32_t FAN_CLEANING_DELAY = 10000;
+static constexpr uint32_t SHT_HEATER_DELAY = 20000;
+static constexpr uint32_t CO2_CONDITIONING_DELAY = 24000;
 static constexpr uint16_t SEN6X_CMD_GET_DATA_READY_STATUS = 0x0202;
 static constexpr uint16_t SEN6X_CMD_GET_FIRMWARE_VERSION = 0xD100;
 static constexpr uint16_t SEN6X_CMD_GET_PRODUCT_NAME = 0xD014;
@@ -29,6 +38,9 @@ static constexpr uint16_t SEN6X_CMD_READ_MEASUREMENT_SEN69C = 0x04B5;
 
 static constexpr uint16_t SEN6X_CMD_READ_NUMBER_CONCENTRATION = 0x0316;
 static constexpr uint16_t SEN6X_CMD_START_MEASUREMENTS = 0x0021;
+static constexpr uint16_t SEN6X_CMD_STOP_MEASUREMENTS = 0x0104;
+static constexpr uint16_t SEN6X_CMD_START_FAN_CLEANING = 0x5607;
+static constexpr uint16_t SEN6X_CMD_ACTIVATE_SHT_HEATER = 0x6765;
 static constexpr uint16_t SEN6X_CMD_RESET = 0xD304;
 static constexpr uint16_t SEN6X_CMD_VOC_ALGORITHM_TUNING = 0x60D0;
 static constexpr uint16_t SEN6X_CMD_NOX_ALGORITHM_TUNING = 0x60E1;
@@ -263,8 +275,14 @@ void SEN6XComponent::finish_setup_() {
     return;
   }
 
-  this->set_timeout(this->startup_delay_ms_, [this]() { this->startup_complete_ = true; });
+  this->set_timeout(TIMEOUT_STARTUP, this->startup_delay_ms_, [this]() { this->startup_complete_ = true; });
   this->initialized_ = true;
+  this->measuring_ = true;
+  this->command_ready_at_ = millis() + START_MEASUREMENT_DELAY;
+  // SEN63C/SEN69C condition the CO2 sensor for 24 s after a start; block restarts until then
+  if (this->sen6x_type_ == SEN63C || this->sen6x_type_ == SEN69C) {
+    this->co2_restart_at_ = millis() + CO2_CONDITIONING_DELAY;
+  }
   ESP_LOGD(TAG, "Initialized");
 }
 
@@ -345,7 +363,7 @@ void SEN6XComponent::dump_config() {
 }
 
 void SEN6XComponent::update() {
-  if (!this->initialized_) {
+  if (!this->initialized_ || !this->measuring_) {
     return;
   }
 
@@ -610,6 +628,90 @@ bool SEN6XComponent::update_ambient_pressure_compensation_(float pressure_hpa) {
   }
   this->last_ambient_pressure_ = value;
   return true;
+}
+
+// True while the previous command's execution or settling time has not elapsed
+bool SEN6XComponent::command_blocked_() const { return static_cast<int32_t>(millis() - this->command_ready_at_) < 0; }
+
+void SEN6XComponent::start_measurement() {
+  if (!this->initialized_ || this->measuring_)
+    return;
+  // The CO2 conditioning window only blocks restarting, not other commands
+  if (this->command_blocked_() || static_cast<int32_t>(millis() - this->co2_restart_at_) < 0) {
+    ESP_LOGW(TAG, "Device busy");
+    return;
+  }
+  if (!this->write_command(SEN6X_CMD_START_MEASUREMENTS)) {
+    this->status_set_warning();
+    ESP_LOGW(TAG, "Start measurement failed (%d)", this->last_error_);
+    return;
+  }
+  this->measuring_ = true;
+  this->command_ready_at_ = millis() + START_MEASUREMENT_DELAY;
+  if (this->sen6x_type_ == SEN63C || this->sen6x_type_ == SEN69C) {
+    this->co2_restart_at_ = millis() + CO2_CONDITIONING_DELAY;
+  }
+  // Values need the warm-up period again after a restart
+  this->startup_complete_ = false;
+  this->set_timeout(TIMEOUT_STARTUP, this->startup_delay_ms_, [this]() { this->startup_complete_ = true; });
+}
+
+void SEN6XComponent::stop_measurement() {
+  if (!this->initialized_ || !this->measuring_)
+    return;
+  if (this->command_blocked_()) {
+    ESP_LOGW(TAG, "Device busy");
+    return;
+  }
+  // Stop any in-flight polling before the device goes idle
+  this->cancel_timeout(TIMEOUT_POLL);
+  if (!this->write_command(SEN6X_CMD_STOP_MEASUREMENTS)) {
+    this->status_set_warning();
+    ESP_LOGW(TAG, "Stop measurement failed (%d)", this->last_error_);
+    return;
+  }
+  this->measuring_ = false;
+  this->command_ready_at_ = millis() + STOP_MEASUREMENT_DELAY;
+}
+
+void SEN6XComponent::start_fan_cleaning() {
+  if (!this->initialized_)
+    return;
+  // The device only accepts this command in idle mode (datasheet section 4.8.22)
+  if (this->measuring_) {
+    ESP_LOGW(TAG, "Fan cleaning requires idle mode; stop the measurement first");
+    return;
+  }
+  if (this->command_blocked_()) {
+    ESP_LOGW(TAG, "Device busy");
+    return;
+  }
+  if (!this->write_command(SEN6X_CMD_START_FAN_CLEANING)) {
+    this->status_set_warning();
+    ESP_LOGW(TAG, "Fan cleaning failed (%d)", this->last_error_);
+    return;
+  }
+  this->command_ready_at_ = millis() + FAN_CLEANING_DELAY;
+}
+
+void SEN6XComponent::activate_sht_heater() {
+  if (!this->initialized_)
+    return;
+  // The device only accepts this command in idle mode (datasheet section 4.8.23)
+  if (this->measuring_) {
+    ESP_LOGW(TAG, "SHT heater requires idle mode; stop the measurement first");
+    return;
+  }
+  if (this->command_blocked_()) {
+    ESP_LOGW(TAG, "Device busy");
+    return;
+  }
+  if (!this->write_command(SEN6X_CMD_ACTIVATE_SHT_HEATER)) {
+    this->status_set_warning();
+    ESP_LOGW(TAG, "SHT heater failed (%d)", this->last_error_);
+    return;
+  }
+  this->command_ready_at_ = millis() + SHT_HEATER_DELAY;
 }
 
 SEN6XComponent::Sen6xType SEN6XComponent::infer_type_from_product_name_(const std::string &product_name) {

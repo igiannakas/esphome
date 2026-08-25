@@ -85,9 +85,14 @@ class SEN6XComponent final : public PollingComponent, public sensirion_common::S
   void set_altitude_compensation(uint16_t altitude) { this->altitude_compensation_ = altitude; }
   void set_ambient_pressure_compensation(uint16_t pressure_hpa) { this->ambient_pressure_ = pressure_hpa; }
   void set_ambient_pressure_source(sensor::Sensor *pressure) { this->ambient_pressure_source_ = pressure; }
+  void start_measurement();
+  void stop_measurement();
+  void start_fan_cleaning();
+  void activate_sht_heater();
 
  protected:
   Sen6xType infer_type_from_product_name_(const std::string &product_name);
+  bool command_blocked_() const;
   void run_next_setup_step_();
   void finish_setup_();
   bool write_config_words_(uint16_t i2c_command, const uint16_t *data, uint8_t len);
@@ -110,6 +115,9 @@ class SEN6XComponent final : public PollingComponent, public sensirion_common::S
   optional<TemperatureCompensation> temperature_compensation_;
   sensor::Sensor *ambient_pressure_source_{nullptr};
   uint32_t startup_delay_ms_{60000};
+  // Deadlines (millis-based) enforcing the datasheet's post-command wait times
+  uint32_t command_ready_at_{0};
+  uint32_t co2_restart_at_{0};
   Sen6xType sen6x_type_{UNKNOWN};
   optional<uint16_t> altitude_compensation_;
   optional<uint16_t> ambient_pressure_;
@@ -123,6 +131,7 @@ class SEN6XComponent final : public PollingComponent, public sensirion_common::S
   uint8_t poll_retries_remaining_{0};
   uint8_t read_words_{0};
   bool initialized_{false};
+  bool measuring_{false};
   bool pressure_range_warned_{false};
   bool startup_complete_{false};
 };
