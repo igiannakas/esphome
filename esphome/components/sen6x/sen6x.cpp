@@ -51,6 +51,26 @@ static constexpr uint16_t SEN6X_CMD_CO2_AUTOMATIC_SELF_CAL = 0x6711;
 static constexpr uint16_t SEN6X_CMD_AMBIENT_PRESSURE = 0x6720;
 static constexpr uint16_t SEN6X_CMD_SENSOR_ALTITUDE = 0x6736;
 
+// Wait windows are stored as (start, duration) rather than as a deadline. A deadline
+// compared with `(int32_t) (millis() - deadline) < 0` inverts once the elapsed time passes
+// 2^31 ms, so after ~24.8 days of uptime every command would read as still waiting and the
+// actions would reject forever. Comparing elapsed against the duration keeps the unsigned
+// difference bounded by the window itself, and clearing an expired window means a later
+// millis() rollover cannot re-open it.
+static void start_wait_window(uint32_t &started_at, uint32_t &duration, uint32_t duration_ms) {
+  started_at = millis();
+  duration = duration_ms;
+}
+
+static bool wait_window_active(uint32_t &started_at, uint32_t &duration) {
+  if (duration == 0)
+    return false;
+  if (millis() - started_at < duration)
+    return true;
+  duration = 0;
+  return false;
+}
+
 static inline void set_read_command_and_words(SEN6XComponent::Sen6xType type, uint16_t &read_cmd, uint8_t &read_words) {
   read_cmd = SEN6X_CMD_READ_MEASUREMENT;
   read_words = 9;
@@ -298,10 +318,10 @@ void SEN6XComponent::finish_setup_() {
   this->set_timeout(TIMEOUT_STARTUP, this->startup_delay_ms_, [this]() { this->startup_complete_ = true; });
   this->initialized_ = true;
   this->measuring_ = true;
-  this->command_ready_at_ = millis() + START_MEASUREMENT_DELAY;
+  start_wait_window(this->command_wait_started_at_, this->command_wait_ms_, START_MEASUREMENT_DELAY);
   // SEN63C/SEN69C condition the CO2 sensor for 24 s after a start; block restarts until then
   if (this->sen6x_type_ == SEN63C || this->sen6x_type_ == SEN69C) {
-    this->co2_restart_at_ = millis() + CO2_CONDITIONING_DELAY;
+    start_wait_window(this->co2_restart_started_at_, this->co2_restart_ms_, CO2_CONDITIONING_DELAY);
   }
   ESP_LOGD(TAG, "Initialized");
 }
@@ -672,13 +692,15 @@ bool SEN6XComponent::update_ambient_pressure_compensation_(float pressure_hpa) {
 }
 
 // True while the previous command's execution or settling time has not elapsed
-bool SEN6XComponent::command_blocked_() const { return static_cast<int32_t>(millis() - this->command_ready_at_) < 0; }
+bool SEN6XComponent::command_blocked_() {
+  return wait_window_active(this->command_wait_started_at_, this->command_wait_ms_);
+}
 
 void SEN6XComponent::start_measurement() {
   if (!this->initialized_ || this->measuring_)
     return;
   // The CO2 conditioning window only blocks restarting, not other commands
-  if (this->command_blocked_() || static_cast<int32_t>(millis() - this->co2_restart_at_) < 0) {
+  if (this->command_blocked_() || wait_window_active(this->co2_restart_started_at_, this->co2_restart_ms_)) {
     ESP_LOGW(TAG, "Device busy");
     return;
   }
@@ -688,9 +710,9 @@ void SEN6XComponent::start_measurement() {
     return;
   }
   this->measuring_ = true;
-  this->command_ready_at_ = millis() + START_MEASUREMENT_DELAY;
+  start_wait_window(this->command_wait_started_at_, this->command_wait_ms_, START_MEASUREMENT_DELAY);
   if (this->sen6x_type_ == SEN63C || this->sen6x_type_ == SEN69C) {
-    this->co2_restart_at_ = millis() + CO2_CONDITIONING_DELAY;
+    start_wait_window(this->co2_restart_started_at_, this->co2_restart_ms_, CO2_CONDITIONING_DELAY);
   }
   // Values need the warm-up period again after a restart
   this->startup_complete_ = false;
@@ -712,7 +734,7 @@ void SEN6XComponent::stop_measurement() {
     return;
   }
   this->measuring_ = false;
-  this->command_ready_at_ = millis() + STOP_MEASUREMENT_DELAY;
+  start_wait_window(this->command_wait_started_at_, this->command_wait_ms_, STOP_MEASUREMENT_DELAY);
 }
 
 void SEN6XComponent::start_fan_cleaning() {
@@ -732,7 +754,7 @@ void SEN6XComponent::start_fan_cleaning() {
     ESP_LOGW(TAG, "Fan cleaning failed (%d)", this->last_error_);
     return;
   }
-  this->command_ready_at_ = millis() + FAN_CLEANING_DELAY;
+  start_wait_window(this->command_wait_started_at_, this->command_wait_ms_, FAN_CLEANING_DELAY);
 }
 
 void SEN6XComponent::activate_sht_heater() {
@@ -752,7 +774,7 @@ void SEN6XComponent::activate_sht_heater() {
     ESP_LOGW(TAG, "SHT heater failed (%d)", this->last_error_);
     return;
   }
-  this->command_ready_at_ = millis() + SHT_HEATER_DELAY;
+  start_wait_window(this->command_wait_started_at_, this->command_wait_ms_, SHT_HEATER_DELAY);
 }
 
 #ifdef USE_BINARY_SENSOR

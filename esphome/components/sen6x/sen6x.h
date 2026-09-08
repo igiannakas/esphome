@@ -105,7 +105,7 @@ class SEN6XComponent final : public PollingComponent, public sensirion_common::S
 
  protected:
   Sen6xType infer_type_from_product_name_(const std::string &product_name);
-  bool command_blocked_() const;
+  bool command_blocked_();
   void run_next_setup_step_();
   void finish_setup_();
   bool write_config_words_(uint16_t i2c_command, const uint16_t *data, uint8_t len);
@@ -133,9 +133,12 @@ class SEN6XComponent final : public PollingComponent, public sensirion_common::S
   optional<TemperatureCompensation> temperature_compensation_;
   sensor::Sensor *ambient_pressure_source_{nullptr};
   uint32_t startup_delay_ms_{60000};
-  // Deadlines (millis-based) enforcing the datasheet's post-command wait times
-  uint32_t command_ready_at_{0};
-  uint32_t co2_restart_at_{0};
+  // Post-command wait windows from the datasheet, held as (start, duration) rather than a
+  // deadline so the elapsed comparison stays bounded — see wait_window_active() in sen6x.cpp
+  uint32_t command_wait_started_at_{0};
+  uint32_t command_wait_ms_{0};
+  uint32_t co2_restart_started_at_{0};
+  uint32_t co2_restart_ms_{0};
   Sen6xType sen6x_type_{UNKNOWN};
   optional<uint16_t> altitude_compensation_;
   optional<uint16_t> ambient_pressure_;
