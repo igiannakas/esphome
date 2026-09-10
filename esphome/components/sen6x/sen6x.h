@@ -3,6 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 #include "esphome/core/optional.h"
+#include "esphome/core/preferences.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/sensirion_common/i2c_sensirion.h"
 #ifdef USE_BINARY_SENSOR
@@ -102,6 +103,13 @@ class SEN6XComponent final : public PollingComponent, public sensirion_common::S
   void stop_measurement();
   void start_fan_cleaning();
   void activate_sht_heater();
+  void set_restore_voc_state_on_boot(bool restore) { this->restore_voc_state_on_boot_ = restore; }
+  // VOC algorithm state (datasheet sections 4.8.27, 4.8.28, 4.8.21). Saving and restoring are
+  // always explicit: nothing here runs on a timer, it is driven from YAML.
+  void save_voc_state();
+  void restore_voc_state();
+  void reset_voc_algorithm();
+  bool has_voc_state() const { return this->voc_state_valid_; }
 
  protected:
   Sen6xType infer_type_from_product_name_(const std::string &product_name);
@@ -120,6 +128,10 @@ class SEN6XComponent final : public PollingComponent, public sensirion_common::S
   void read_number_concentration_();
   void parse_and_publish_number_concentration_();
   void start_poll_chain_();
+  void finish_poll_cycle_();
+  bool load_voc_state_and_restore_();
+  void service_pending_voc_save_();
+  void clear_voc_state_();
 #ifdef USE_BINARY_SENSOR
   void read_device_status_();
   void parse_and_publish_device_status_();
@@ -158,6 +170,17 @@ class SEN6XComponent final : public PollingComponent, public sensirion_common::S
   bool has_status_sensors_{false};
 #endif
   bool startup_complete_{false};
+  // VOC algorithm state, an opaque 8-byte blob the device hands out and takes back
+  bool voc_supported_{false};
+  bool voc_state_valid_{false};
+  // make_preference() allocates a backend that is never freed, so it is called once per boot
+  bool voc_pref_ready_{false};
+  bool voc_save_pending_{false};
+  // Set while a stop/write/start sequence owns the bus, so nothing else writes underneath it
+  bool voc_sequence_active_{false};
+  bool restore_voc_state_on_boot_{true};
+  uint16_t voc_state_[4]{0};
+  ESPPreferenceObject voc_pref_;
 };
 
 }  // namespace esphome::sen6x

@@ -9,6 +9,7 @@ sensor:
     type: SEN69C
     i2c_id: i2c_bus
     startup_delay: 30s
+    restore_voc_state_on_boot: true
     temperature_compensation:
       offset: 0
       normalized_offset_slope: 0
@@ -90,6 +91,30 @@ button:
     name: SHT Heater
     on_press:
       - sen6x.activate_sht_heater: sen6x_sensor
+  - platform: template
+    name: VOC State Actions
+    on_press:
+      - sen6x.save_voc_state: sen6x_sensor
+      - delay: 1s
+      - sen6x.restore_voc_state: sen6x_sensor
+      - delay: 1s
+      - sen6x.reset_voc_algorithm: sen6x_sensor
+  - platform: template
+    name: VOC State Lambda
+    on_press:
+      - lambda: |-
+          id(sen6x_sensor).save_voc_state();
+          if (id(sen6x_sensor).has_voc_state()) {
+            id(sen6x_sensor).restore_voc_state();
+          }
+  - platform: sen6x
+    sen6x_id: sen6x_sensor
+    save_voc_state:
+      name: Save VOC Calibration
+    restore_voc_state:
+      name: Restore VOC Calibration
+    reset_voc_algorithm:
+      name: Reset VOC Calibration
 
 binary_sensor:
   - platform: sen6x

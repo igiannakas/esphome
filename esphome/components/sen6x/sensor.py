@@ -62,6 +62,7 @@ from esphome.cpp_generator import MockObj, TemplateArgsType
 from esphome.types import ConfigType
 
 CONF_TEMPERATURE_ACCELERATION = "temperature_acceleration"
+CONF_RESTORE_VOC_STATE_ON_BOOT = "restore_voc_state_on_boot"
 CONF_K = "k"
 CONF_P = "p"
 CONF_T1 = "t1"
@@ -79,6 +80,9 @@ StartMeasurementAction = sen6x_ns.class_("StartMeasurementAction", automation.Ac
 StopMeasurementAction = sen6x_ns.class_("StopMeasurementAction", automation.Action)
 StartFanCleaningAction = sen6x_ns.class_("StartFanCleaningAction", automation.Action)
 ActivateHeaterAction = sen6x_ns.class_("ActivateHeaterAction", automation.Action)
+SaveVocStateAction = sen6x_ns.class_("SaveVocStateAction", automation.Action)
+RestoreVocStateAction = sen6x_ns.class_("RestoreVocStateAction", automation.Action)
+ResetVocAlgorithmAction = sen6x_ns.class_("ResetVocAlgorithmAction", automation.Action)
 
 
 def _gas_index_schema(
@@ -237,6 +241,7 @@ CONFIG_SCHEMA = cv.All(
                 cv.positive_time_period_milliseconds,
                 cv.Range(max=cv.TimePeriod(hours=1)),
             ),
+            cv.Optional(CONF_RESTORE_VOC_STATE_ON_BOOT, default=True): cv.boolean,
             cv.Optional(CONF_TEMPERATURE_COMPENSATION): cv.Schema(
                 {
                     cv.Optional(CONF_OFFSET, default=0): cv.float_range(
@@ -300,6 +305,7 @@ async def to_code(config: ConfigType) -> None:
         cg.add(var.set_type(config[CONF_TYPE]))
 
     cg.add(var.set_startup_delay(config[CONF_STARTUP_DELAY]))
+    cg.add(var.set_restore_voc_state_on_boot(config[CONF_RESTORE_VOC_STATE_ON_BOOT]))
 
     if (comp := config.get(CONF_TEMPERATURE_COMPENSATION)) is not None:
         cg.add(
@@ -381,6 +387,24 @@ SEN6X_ACTION_SCHEMA = maybe_simple_id(
 @automation.register_action(
     "sen6x.activate_sht_heater",
     ActivateHeaterAction,
+    SEN6X_ACTION_SCHEMA,
+    synchronous=True,
+)
+@automation.register_action(
+    "sen6x.save_voc_state",
+    SaveVocStateAction,
+    SEN6X_ACTION_SCHEMA,
+    synchronous=True,
+)
+@automation.register_action(
+    "sen6x.restore_voc_state",
+    RestoreVocStateAction,
+    SEN6X_ACTION_SCHEMA,
+    synchronous=True,
+)
+@automation.register_action(
+    "sen6x.reset_voc_algorithm",
+    ResetVocAlgorithmAction,
     SEN6X_ACTION_SCHEMA,
     synchronous=True,
 )
