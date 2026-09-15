@@ -1,0 +1,28 @@
+esphome:
+  name: test
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+uart:
+  id: radar_uart
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 9600
+
+dfrobot_mmwave:
+  id: radar
+  uart_id: radar_uart
+  model: SEN0609
+  presence_pin: GPIO19
+
+switch:
+  - platform: dfrobot_mmwave
+    led: {}
+    speed_micro_motion: {}
+
+number:
+  - platform: dfrobot_mmwave
+    speed_threshold_factor: {}

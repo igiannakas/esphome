@@ -1,0 +1,6 @@
+substitutions:
+  presence_pin: GPIO21
+
+packages:
+  uart: !include ../../test_build_components/common/uart/esp32-idf.yaml
+  dfrobot_mmwave: !include common.yaml

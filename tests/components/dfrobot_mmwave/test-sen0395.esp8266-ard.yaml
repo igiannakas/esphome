@@ -1,0 +1,6 @@
+substitutions:
+  presence_pin: GPIO12
+
+packages:
+  uart: !include ../../test_build_components/common/uart_115200/esp8266-ard.yaml
+  dfrobot_mmwave: !include common-sen0395.yaml

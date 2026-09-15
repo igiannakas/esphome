@@ -1,0 +1,95 @@
+esphome:
+  name: test
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+uart:
+  - id: c4001_uart
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+    baud_rate: 9600
+  - id: sen0395_uart
+    tx_pin: GPIO4
+    rx_pin: GPIO5
+    baud_rate: 115200
+
+dfrobot_mmwave:
+  - id: c4001
+    uart_id: c4001_uart
+    model: SEN0609
+    presence_pin: GPIO19
+  - id: sen0395
+    uart_id: sen0395_uart
+    model: SEN0395
+
+binary_sensor:
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: c4001
+    occupancy: {}
+    uart_occupancy: {}
+    out_pin_occupancy: {}
+    link_ok: {}
+
+switch:
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: c4001
+    running: {}
+    led: {}
+    uart_presence_report: {}
+    speed_micro_motion: {}
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: sen0395
+    uart_target_report: {}
+
+number:
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: c4001
+    min_range: {}
+    max_range: {}
+    trigger_range: {}
+    hold_sensitivity: {}
+    trigger_sensitivity: {}
+    on_latency: {}
+    off_latency: {}
+    inhibit_time: {}
+    speed_threshold_factor: {}
+    uart_report_period: {}
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: sen0395
+    sensitivity: {}
+
+select:
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: c4001
+    work_mode: {}
+
+button:
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: c4001
+    refresh: {}
+    restart: {}
+    factory_reset: {}
+
+sensor:
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: c4001
+    target_count: {}
+    target_1_distance: {}
+    target_1_speed: {}
+    target_1_energy: {}
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: sen0395
+    target_1_snr: {}
+    target_8_distance: {}
+    target_8_snr: {}
+
+text_sensor:
+  - platform: dfrobot_mmwave
+    dfrobot_mmwave_id: c4001
+    software_version: {}
+    hardware_version: {}
+    status: {}
+    last_error: {}

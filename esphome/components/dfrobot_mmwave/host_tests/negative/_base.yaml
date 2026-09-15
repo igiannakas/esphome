@@ -1,0 +1,7 @@
+esphome:
+  name: mmwave-negative
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+logger:

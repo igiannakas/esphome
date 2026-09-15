@@ -1,0 +1,39 @@
+esphome:
+  name: test
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+uart:
+  id: uart_bus
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 9600
+
+dfrobot_mmwave:
+  id: radar
+  model: SEN0609
+
+number:
+  - platform: dfrobot_mmwave
+    min_range:
+      id: n_min_range
+      name: Min range
+    max_range:
+      id: n_max_range
+      name: Max range
+    inhibit_time:
+      id: n_inhibit
+      name: Inhibit time
+    on_latency:
+      id: n_on_latency
+      name: On latency
+    off_latency:
+      id: n_off_latency
+      name: Off latency
+      mode: slider
+    uart_report_period:
+      id: n_period
+      name: UART report period
